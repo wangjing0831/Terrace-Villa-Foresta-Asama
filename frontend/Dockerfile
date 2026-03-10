@@ -26,9 +26,9 @@ COPY --from=builder /app/public ./public
 # Data directory (JSON files, uploads)
 COPY --from=builder /app/data ./data
 
-EXPOSE 3000
+EXPOSE 80
 
-ENV PORT=3000
+ENV PORT=80
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
