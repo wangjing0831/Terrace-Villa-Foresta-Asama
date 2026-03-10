@@ -6,8 +6,8 @@ const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function base64url(buf: ArrayBuffer): string {
-  return Buffer.from(buf)
+function base64url(buf: ArrayBuffer | Uint8Array): string {
+  return Buffer.from(buf instanceof Uint8Array ? buf : new Uint8Array(buf))
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
