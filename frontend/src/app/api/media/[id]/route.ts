@@ -84,30 +84,42 @@ export async function DELETE(
 }
 
 // PUT /api/media/[id]
-// body: {}                → set as hero (legacy)
-// body: { category }      → move image to new category
+// body: { category?, isHero?, name? } → update category and/or isHero flag and/or display name
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const body: { category?: string } = await request.json().catch(() => ({}));
+    const body: { category?: string; isHero?: boolean; name?: string } = await request.json().catch(() => ({}));
     const manifest = await readManifest();
 
     let updated: MediaEntry[];
 
-    if (body.category) {
-      // Move image to new category
+    if (body.category !== undefined) {
+      // Update category (and optionally isHero)
+      updated = manifest.map((e) => {
+        if (e.id !== id) return e;
+        const entry = { ...e, category: body.category! };
+        if (body.isHero !== undefined) entry.isHero = body.isHero;
+        return entry;
+      });
+    } else if (body.isHero !== undefined) {
+      // Only update isHero (when hero star toggled without category change)
       updated = manifest.map((e) =>
-        e.id === id ? { ...e, category: body.category! } : e
+        e.id === id ? { ...e, isHero: body.isHero! } : e
       );
     } else {
-      // Legacy: set as hero
+      // Legacy: set as hero (body is empty)
       updated = manifest.map((e) => ({
         ...e,
         isHero: e.id === id ? true : e.category === 'hero' ? false : e.isHero,
       }));
+    }
+
+    // Apply name update if provided
+    if (body.name !== undefined) {
+      updated = updated.map((e) => e.id === id ? { ...e, name: body.name! } : e);
     }
 
     await saveManifest(updated);

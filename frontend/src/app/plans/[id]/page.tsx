@@ -280,10 +280,22 @@ export default function PlanDetailPage() {
   const lang = language as Lang;
 
   useEffect(() => {
-    fetch(`/api/media/images?category=plan-${plan.id}`)
-      .then((r) => r.ok ? r.json() : [])
-      .then((data: MediaItem[]) => setSpotPhotos(data))
-      .catch(() => {});
+    const load = async () => {
+      try {
+        const [layoutRes, allImgRes] = await Promise.all([
+          fetch('/api/layouts'),
+          fetch('/api/media/images'),
+        ]);
+        const layout: Record<string, string[]> = layoutRes.ok ? await layoutRes.json() : {};
+        const allImgs: MediaItem[] = allImgRes.ok ? await allImgRes.json() : [];
+        const galleryUrls = layout[`plan.${plan.id}.gallery`] ?? [];
+        const photos = galleryUrls
+          .map((url) => allImgs.find((img) => img.url === url))
+          .filter(Boolean) as MediaItem[];
+        setSpotPhotos(photos);
+      } catch { /* silently fail */ }
+    };
+    load();
   }, [plan.id]);
 
   useEffect(() => {
@@ -331,7 +343,7 @@ export default function PlanDetailPage() {
             </span>
             <div className="gold-line"></div>
           </div>
-          <h1 className="font-display text-4xl md:text-6xl font-bold text-white tracking-tight mb-4 uppercase">
+          <h1 className="font-display text-3xl sm:text-4xl md:text-6xl font-bold text-white tracking-tight mb-4 uppercase">
             {title}
           </h1>
           <div className="gold-divider w-48 mb-6" />
@@ -341,7 +353,7 @@ export default function PlanDetailPage() {
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-6 pb-24">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 sm:pb-24">
         {/* Description */}
         <section className="py-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -417,7 +429,7 @@ export default function PlanDetailPage() {
             {/* Lightbox */}
             {lightboxOpen && (
               <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center" onClick={() => setLightboxOpen(false)}>
-                <div className="relative w-full max-w-5xl mx-auto px-16" onClick={(e) => e.stopPropagation()}>
+                <div className="relative w-full max-w-5xl mx-auto px-8 sm:px-16" onClick={(e) => e.stopPropagation()}>
                   <Image
                     src={spotPhotos[lightboxIdx].url}
                     alt={spotPhotos[lightboxIdx].name}
@@ -431,7 +443,7 @@ export default function PlanDetailPage() {
                   <button onClick={() => setLightboxIdx((p) => (p + 1) % spotPhotos.length)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 border border-white/20 flex items-center justify-center hover:border-gold hover:text-gold transition-all text-white/60 text-xl">›</button>
                   <button onClick={() => setLightboxOpen(false)}
-                    className="absolute -top-8 right-16 text-white/40 hover:text-gold text-3xl">×</button>
+                    className="absolute -top-8 right-8 sm:right-16 text-white/40 hover:text-gold text-3xl">×</button>
                   <div className="flex justify-between mt-3">
                     <span className="font-kaiti italic text-white/30 text-sm">{spotPhotos[lightboxIdx].name}</span>
                     <span className="font-display text-white/30 text-[10px] tracking-widest">{lightboxIdx + 1} / {spotPhotos.length}</span>
@@ -453,9 +465,9 @@ export default function PlanDetailPage() {
             {plan.itinerary.map((day, idx) => (
               <div
                 key={idx}
-                className="flex gap-6 border-b border-white/5 pb-6 last:border-0"
+                className="flex flex-col sm:flex-row gap-4 sm:gap-6 border-b border-white/5 pb-6 last:border-0"
               >
-                <div className="w-12 flex-shrink-0 font-display text-3xl font-bold text-gold/20 text-right">
+                <div className="hidden sm:block w-12 flex-shrink-0 font-display text-3xl font-bold text-gold/20 text-right">
                   {String(idx + 1).padStart(2, '0')}
                 </div>
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -553,7 +565,7 @@ export default function PlanDetailPage() {
         </section>
 
         {/* Back to Plans */}
-        <div className="pt-8 border-t border-white/5 flex gap-4">
+        <div className="pt-8 border-t border-white/5 flex flex-wrap gap-3 sm:gap-4">
           <Link href="/plans" className="luxury-btn-outline">
             ← Back
           </Link>

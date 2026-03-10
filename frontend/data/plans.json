@@ -1,0 +1,194 @@
+[
+  {
+    "id": "golf",
+    "titleZh": "高尔夫精英之旅",
+    "titleJa": "ゴルフエリートの旅",
+    "titleEn": "Golf Elite Journey",
+    "descZh": "在日本最顶级的高尔夫球场挥杆，体验贵族运动与极致奢华的完美融合。",
+    "descJa": "日本最高峰のゴルフコースでプレーし、貴族のスポーツと極上の贅沢の完璧な融合を体験してください。",
+    "descEn": "Play at Japan's finest golf courses and experience the perfect fusion of aristocratic sport and ultimate luxury.",
+    "duration": 7,
+    "price": "¥60,000",
+    "tagZh": "最受欢迎",
+    "tagJa": "最人気",
+    "tagEn": "Most Popular",
+    "highlightsZh": [
+      "5大顶级球场体验",
+      "别墅私人管家",
+      "米其林餐厅晚宴"
+    ],
+    "highlightsJa": [
+      "5大トップコース体験",
+      "ヴィラ専属バトラー",
+      "ミシュランレストランディナー"
+    ],
+    "highlightsEn": [
+      "5 Top Golf Courses",
+      "Private Villa Butler",
+      "Michelin Dinner"
+    ],
+    "coverImage": "/uploads/plan-golf/1773048996503-_________.jpg",
+    "visible": true,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "nature",
+    "titleZh": "轻井泽自然探索",
+    "titleJa": "軽井沢ネイチャーツアー",
+    "titleEn": "Karuizawa Nature Tour",
+    "descZh": "深入轻井泽原始森林，感受大自然的恢弘与宁静，开启心灵的归宿之旅。",
+    "descJa": "軽井沢の原生林に分け入り、大自然の壮大さと静寂を感じ、心の故郷への旅を始めましょう。",
+    "descEn": "Venture deep into Karuizawa's primeval forest, feel the grandeur and tranquility of nature.",
+    "duration": 4,
+    "price": "¥35,000",
+    "tagZh": "",
+    "tagJa": "",
+    "tagEn": "",
+    "highlightsZh": [
+      "白丝瀑布徒步",
+      "浅间山观望",
+      "星野温泉体验"
+    ],
+    "highlightsJa": [
+      "白糸の滝ハイキング",
+      "浅間山ビュー",
+      "星野温泉体験"
+    ],
+    "highlightsEn": [
+      "Shiraito Falls Hike",
+      "Mt. Asama View",
+      "Hoshino Onsen"
+    ],
+    "coverImage": "",
+    "visible": false,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "luxury",
+    "titleZh": "奢华蜜月之旅",
+    "titleJa": "ラグジュアリーハネムーン",
+    "titleEn": "Luxury Honeymoon",
+    "descZh": "专为恋人打造，沉浸在轻井泽的浪漫氛围中，享受两人世界的极致私密体验。",
+    "descJa": "カップルのために特別に作られた軽井沢のロマンチックな雰囲気の中で、二人だけの極上プライベート体験をお楽しみください。",
+    "descEn": "Specially crafted for couples, immerse yourselves in the romantic atmosphere of Karuizawa.",
+    "duration": 5,
+    "price": "¥45,000",
+    "tagZh": "新品",
+    "tagJa": "新登場",
+    "tagEn": "New",
+    "highlightsZh": [
+      "私人烛光晚宴",
+      "露台日出观赏",
+      "双人spa体验"
+    ],
+    "highlightsJa": [
+      "プライベートキャンドルディナー",
+      "テラスからの日の出鑑賞",
+      "カップルスパ体験"
+    ],
+    "highlightsEn": [
+      "Private Candlelit Dinner",
+      "Terrace Sunrise Viewing",
+      "Couples Spa"
+    ],
+    "coverImage": "",
+    "visible": false,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "culture",
+    "titleZh": "轻井泽文化艺术之旅",
+    "titleJa": "軽井沢文化芸術の旅",
+    "titleEn": "Karuizawa Culture & Art",
+    "descZh": "探索轻井泽丰富的历史文化，参观教会建筑、美术馆，感受百年避暑胜地的人文底蕴。",
+    "descJa": "軽井沢の豊かな歴史文化を探索し、教会建築や美術館を訪れ、百年の避暑地の文化的蓄積を感じてください。",
+    "descEn": "Explore Karuizawa's rich history and culture, visiting churches, art museums, and historic sites.",
+    "duration": 3,
+    "price": "¥25,000",
+    "tagZh": "",
+    "tagJa": "",
+    "tagEn": "",
+    "highlightsZh": [
+      "石之教堂参观",
+      "轻井泽现代美术馆",
+      "旧银座商店街"
+    ],
+    "highlightsJa": [
+      "石の教会訪問",
+      "軽井沢現代美術館",
+      "旧銀座商店街"
+    ],
+    "highlightsEn": [
+      "Stone Church Visit",
+      "Contemporary Art Museum",
+      "Old Ginza Shopping Street"
+    ],
+    "coverImage": "",
+    "visible": false,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "gourmet",
+    "titleZh": "美食家的轻井泽",
+    "titleJa": "グルメの軽井沢",
+    "titleEn": "Gourmet Karuizawa",
+    "descZh": "以美食为主线，从怀石料理到法式西餐，探索轻井泽顶级餐饮文化的无限魅力。",
+    "descJa": "懐石料理からフレンチまで、美食を中心に軽井沢トップグルメ文化の無限の魅力を探索します。",
+    "descEn": "With gastronomy as the theme, from kaiseki to French cuisine, explore Karuizawa's finest dining culture.",
+    "duration": 4,
+    "price": "¥40,000",
+    "tagZh": "",
+    "tagJa": "",
+    "tagEn": "",
+    "highlightsZh": [
+      "米其林星级餐厅",
+      "私人主厨和牛晚宴",
+      "本地市场采购体验"
+    ],
+    "highlightsJa": [
+      "ミシュラン星付きレストラン",
+      "プライベートシェフ和牛ディナー",
+      "ローカル市場での食材調達体験"
+    ],
+    "highlightsEn": [
+      "Michelin Star Restaurants",
+      "Private Chef Wagyu Dinner",
+      "Local Market Food Tour"
+    ],
+    "coverImage": "",
+    "visible": false,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "seasonal",
+    "titleZh": "四季轻井泽",
+    "titleJa": "四季の軽井沢",
+    "titleEn": "Four Seasons Karuizawa",
+    "descZh": "感受轻井泽四季的独特魅力：春日樱花、夏日绿荫、秋日红叶、冬日银装。",
+    "descJa": "春の桜、夏の緑陰、秋の紅葉、冬の銀世界と、軽井沢四季それぞれの独特な魅力を感じてください。",
+    "descEn": "Experience the unique charms of Karuizawa through all seasons: spring cherry blossoms to winter snow.",
+    "duration": 6,
+    "price": "¥50,000",
+    "tagZh": "推荐",
+    "tagJa": "おすすめ",
+    "tagEn": "Recommended",
+    "highlightsZh": [
+      "季节性自然体验",
+      "当季美食品鉴",
+      "专属摄影记录"
+    ],
+    "highlightsJa": [
+      "季節の自然体験",
+      "旬のグルメ鑑賞",
+      "専属フォトグラファー"
+    ],
+    "highlightsEn": [
+      "Seasonal Nature Experience",
+      "Seasonal Gourmet Tasting",
+      "Dedicated Photographer"
+    ],
+    "coverImage": "",
+    "visible": false,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  }
+]

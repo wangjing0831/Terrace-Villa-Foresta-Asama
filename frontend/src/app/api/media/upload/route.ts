@@ -31,8 +31,7 @@ async function writeManifest(entries: MediaEntry[]) {
   if (!existsSync(dir)) {
     await mkdir(dir, { recursive: true });
   }
-  const { writeFile: wf } = await import('fs/promises');
-  await wf(MANIFEST_PATH, JSON.stringify(entries, null, 2), 'utf-8');
+  await writeFile(MANIFEST_PATH, JSON.stringify(entries, null, 2), 'utf-8');
 }
 
 export async function POST(request: Request) {

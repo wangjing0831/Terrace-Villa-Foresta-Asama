@@ -10,23 +10,10 @@ import { translations } from '@/i18n/translations';
 
 type Tab = 'images' | 'videos' | 'plans' | 'layout';
 
-type Category =
-  | 'uncategorized'
-  | 'hero'
-  | 'hotel'
-  | 'surroundings'
-  | 'videos'
-  | 'plan-golf'
-  | 'plan-nature'
-  | 'plan-luxury'
-  | 'plan-culture'
-  | 'plan-gourmet'
-  | 'plan-seasonal';
-
 interface MediaFile {
   id: string;
   name: string;
-  category: Category;
+  category: string;
   size: string;
   uploadDate: string;
   url: string;
@@ -47,6 +34,9 @@ interface PlanEntry {
   createdAt: string;
 }
 
+// Layout: section key → ordered array of image URLs
+type PageLayouts = Record<string, string[]>;
+
 const BLANK_PLAN: Omit<PlanEntry, 'createdAt'> = {
   id: '', titleZh: '', titleJa: '', titleEn: '',
   descZh: '', descJa: '', descEn: '',
@@ -56,12 +46,31 @@ const BLANK_PLAN: Omit<PlanEntry, 'createdAt'> = {
   coverImage: '', visible: true,
 };
 
-// ─── Section label map ────────────────────────────────────────────────────────
+const DEFAULT_LAYOUTS: PageLayouts = {
+  'home.hero':           [],
+  'home.hotel':          [],
+  'home.surroundings':   [],
+  'gallery.hotel':       [],
+  'gallery.surroundings':[],
+  'surroundings.spots':  [],
+};
 
-const SECTION_LABEL: Record<string, string> = {
-  hero:         'Home › Hero Slideshow',
-  hotel:        'Home › Hotel Intro / Gallery',
-  surroundings: 'Home › Surroundings / Surroundings page',
+const LAYOUT_SECTION_LABELS: Record<string, string> = {
+  'home.hero':           'Home › Hero Slideshow',
+  'home.hotel':          'Home › Hotel Intro',
+  'home.surroundings':   'Home › Surroundings',
+  'gallery.hotel':       'Gallery › Hotel',
+  'gallery.surroundings':'Gallery › Surroundings',
+  'surroundings.spots':  'Surroundings › Spots',
+};
+
+const SECTION_MAX: Record<string, number> = {
+  'home.hero':           10,
+  'home.hotel':           3,
+  'home.surroundings':    4,
+  'gallery.hotel':       50,
+  'gallery.surroundings':50,
+  'surroundings.spots':   9,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -80,41 +89,60 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Plans state ──
-  const [plans, setPlans]                 = useState<PlanEntry[]>([]);
-  const [plansLoading, setPlansLoading]   = useState(true);
-  const [showPlanForm, setShowPlanForm]   = useState(false);
-  const [editingPlan, setEditingPlan]     = useState<PlanEntry | null>(null);
-  const [planForm, setPlanForm]           = useState<Omit<PlanEntry, 'createdAt'>>(BLANK_PLAN);
-  const [planSaving, setPlanSaving]       = useState(false);
+  const [plans, setPlans]               = useState<PlanEntry[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [showPlanForm, setShowPlanForm] = useState(false);
+  const [editingPlan, setEditingPlan]   = useState<PlanEntry | null>(null);
+  const [planForm, setPlanForm]         = useState<Omit<PlanEntry, 'createdAt'>>(BLANK_PLAN);
+  const [planSaving, setPlanSaving]     = useState(false);
 
-  // ── Layout drag state ──
-  const [draggedFile, setDraggedFile]   = useState<MediaFile | null>(null);
-  const [dropTarget, setDropTarget]     = useState<string | null>(null);
+  // ── Layout state ──
+  const [savedLayout, setSavedLayout]   = useState<PageLayouts>(DEFAULT_LAYOUTS);
+  const [draftLayout, setDraftLayout]   = useState<PageLayouts | null>(null);
+  const [draftPlans, setDraftPlans]     = useState<PlanEntry[] | null>(null);
   const [layoutPage, setLayoutPage]     = useState<string>('home');
 
-  // ── Draft / preview state ──
-  const [draftFiles, setDraftFiles]             = useState<MediaFile[] | null>(null);
-  const [draftPlans, setDraftPlans]             = useState<PlanEntry[] | null>(null);
+  // ── Layout drag state ──
+  const [draggedFile, setDraggedFile]           = useState<MediaFile | null>(null);
+  const [dragSourceSection, setDragSourceSection] = useState<string | null>(null);
+  const [dropTarget, setDropTarget]             = useState<string | null>(null);
+
+  // ── Upload previews ──
+  const [uploadPreviews, setUploadPreviews] = useState<{name: string; url: string}[]>([]);
+
+  // ── Bulk delete ──
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // ── Preview / publish ──
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isPublishing, setIsPublishing]         = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+
+  // ── Image metadata editing ──
+  const [editingMetaFile, setEditingMetaFile] = useState<MediaFile | null>(null);
+  const [metaForm, setMetaForm]               = useState({ name: '' });
+  const [metaSaving, setMetaSaving]           = useState(false);
 
   // ── Toast ──
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // ── Computed ──
-  const layoutFiles = draftFiles ?? files;
-  const layoutPlans = draftPlans ?? plans;
-  const hasLayoutChanges = draftFiles !== null || draftPlans !== null;
+  const currentLayout  = draftLayout ?? savedLayout;
+  const layoutPlans    = draftPlans  ?? plans;
+  const hasLayoutChanges = draftLayout !== null || draftPlans !== null;
 
   const changeCount = (() => {
     let n = 0;
-    draftFiles?.forEach((df) => {
-      const orig = files.find((f) => f.id === df.id);
-      if (orig && (df.category !== orig.category || !!df.isHero !== !!orig.isHero)) n++;
-    });
-    draftPlans?.forEach((dp) => {
-      if (plans.find((p) => p.id === dp.id)?.coverImage !== dp.coverImage) n++;
-    });
+    if (draftLayout) {
+      for (const [k, urls] of Object.entries(draftLayout)) {
+        if (JSON.stringify(urls) !== JSON.stringify(savedLayout[k] ?? [])) n++;
+      }
+    }
+    if (draftPlans) {
+      draftPlans.forEach((dp) => {
+        if (plans.find((p) => p.id === dp.id)?.coverImage !== dp.coverImage) n++;
+      });
+    }
     return n;
   })();
 
@@ -128,7 +156,7 @@ export default function AdminPage() {
     router.push('/admin/login');
   };
 
-  // ─── Load data on mount ───────────────────────────────────────────────────
+  // ─── Load data ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     (async () => {
@@ -149,6 +177,15 @@ export default function AdminPage() {
         setPlans(res.ok ? await res.json() : []);
       } catch { setPlans([]); }
       finally { setPlansLoading(false); }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/layouts');
+        if (res.ok) setSavedLayout({ ...DEFAULT_LAYOUTS, ...await res.json() });
+      } catch { /* use defaults */ }
     })();
   }, []);
 
@@ -173,6 +210,7 @@ export default function AdminPage() {
     } catch { showMessage('error', t(translations.common.error)); }
     finally {
       setUploading(false);
+      setUploadPreviews([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }, [activeTab, t]);
@@ -184,23 +222,29 @@ export default function AdminPage() {
     await handleUpload(Array.from(e.dataTransfer.files));
   }, [handleUpload]);
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    await handleUpload(Array.from(e.target.files ?? []));
+    const selected = Array.from(e.target.files ?? []);
+    setUploadPreviews(selected.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })));
+    await handleUpload(selected);
   };
 
-  // ─── Image usage check ────────────────────────────────────────────────────
+  // ─── Image usage check (based on layout data) ────────────────────────────
 
   const getImageUsage = useCallback((file: MediaFile): string | null => {
-    if (file.category === 'uncategorized' || file.category === 'videos') return null;
-    if (file.category in SECTION_LABEL) return SECTION_LABEL[file.category];
-    if (file.category.startsWith('plan-')) {
-      const planId = file.category.replace('plan-', '');
-      const plan = plans.find((p) => p.id === planId);
-      return `Plan "${plan?.titleEn ?? planId}" › Photo Gallery`;
+    if (file.type === 'video') return null;
+    for (const [section, urls] of Object.entries(currentLayout)) {
+      if (urls.includes(file.url)) {
+        if (section.startsWith('plan.') && section.endsWith('.gallery')) {
+          const planId = section.replace('plan.', '').replace('.gallery', '');
+          const plan = (draftPlans ?? plans).find((p) => p.id === planId);
+          return `Plan "${plan?.titleEn ?? planId}" › Gallery`;
+        }
+        return LAYOUT_SECTION_LABELS[section] ?? section;
+      }
     }
-    const planWithCover = plans.find((p) => p.coverImage === file.url);
-    if (planWithCover) return `Plan "${planWithCover.titleEn}" › Cover Image`;
+    const planCover = (draftPlans ?? plans).find((p) => p.coverImage === file.url);
+    if (planCover) return `Plan "${planCover.titleEn || planCover.id}" › Cover`;
     return null;
-  }, [plans]);
+  }, [currentLayout, draftPlans, plans]);
 
   // ─── Delete media ────────────────────────────────────────────────────────
 
@@ -208,10 +252,7 @@ export default function AdminPage() {
     const file = files.find((f) => f.id === id);
     if (!file) return;
     const usage = getImageUsage(file);
-    if (usage) {
-      showMessage('error', `削除不可 — 使用中: ${usage}`);
-      return;
-    }
+    if (usage) { showMessage('error', `削除不可 — 使用中: ${usage}`); return; }
     if (!window.confirm('Are you sure you want to delete this file?')) return;
     try {
       const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
@@ -291,27 +332,48 @@ export default function AdminPage() {
     finally { setPlanSaving(false); }
   };
 
-  // ─── Draft layout operations ──────────────────────────────────────────────
+  // ─── Bulk delete unused ───────────────────────────────────────────────────
 
-  /** Change which section/category an image belongs to */
-  const draftAssignCategory = useCallback((fileId: string, newCategory: string) => {
-    setDraftFiles((prev) => {
-      const source = prev ?? files;
-      return source.map((f) => f.id === fileId ? { ...f, category: newCategory as Category } : f);
-    });
-  }, [files]);
+  const handleBulkDeleteUnused = async () => {
+    const unused = imageFiles.filter((f) => getImageUsage(f) === null);
+    if (unused.length === 0) { showMessage('error', '未使用の画像はありません'); return; }
+    if (!window.confirm(`未使用の画像 ${unused.length} 件を削除します。この操作は元に戻せません。`)) return;
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.all(unused.map((f) => fetch(`/api/media/${f.id}`, { method: 'DELETE' })));
+      const deletedIds = unused.filter((_, i) => results[i].ok).map((f) => f.id);
+      setFiles((prev) => prev.filter((f) => !deletedIds.includes(f.id)));
+      showMessage('success', `${deletedIds.length} 件削除しました`);
+    } catch { showMessage('error', t(translations.common.error)); }
+    finally { setBulkDeleting(false); }
+  };
 
-  /** Set a hero image as the initial display (★) */
-  const draftSetHero = useCallback((fileId: string) => {
-    setDraftFiles((prev) => {
-      const source = prev ?? files;
-      return source.map((f) =>
-        f.category === 'hero' ? { ...f, isHero: f.id === fileId } : f
-      );
-    });
-  }, [files]);
+  // ─── Image metadata save ──────────────────────────────────────────────────
 
-  /** Assign cover image to a plan */
+  const handleSaveMeta = async () => {
+    if (!editingMetaFile) return;
+    setMetaSaving(true);
+    try {
+      const res = await fetch(`/api/media/${editingMetaFile.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: metaForm.name }),
+      });
+      if (res.ok) {
+        const updated: MediaFile = await res.json();
+        setFiles((prev) => prev.map((f) => f.id === updated.id ? { ...f, name: updated.name ?? metaForm.name } : f));
+        setEditingMetaFile(null);
+        showMessage('success', 'ファイル名を更新しました');
+      } else {
+        showMessage('error', t(translations.common.error));
+      }
+    } catch { showMessage('error', t(translations.common.error)); }
+    finally { setMetaSaving(false); }
+  };
+
+  // ─── Layout draft operations ──────────────────────────────────────────────
+
+  /** Assign cover image to a plan (draft) */
   const draftAssignCover = useCallback((planId: string, imageUrl: string) => {
     setDraftPlans((prev) => {
       const source = prev ?? plans;
@@ -319,27 +381,20 @@ export default function AdminPage() {
     });
   }, [plans]);
 
-  const handleDiscardDraft = () => { setDraftFiles(null); setDraftPlans(null); };
+  const handleDiscardDraft = () => { setDraftLayout(null); setDraftPlans(null); };
 
-  /** Publish all draft changes to the server */
+  /** Publish all draft changes to server */
   const handlePublish = async () => {
     setIsPublishing(true);
     try {
-      if (draftFiles) {
-        const changed = draftFiles.filter((df) => {
-          const orig = files.find((f) => f.id === df.id);
-          return orig && (df.category !== orig.category || !!df.isHero !== !!orig.isHero);
+      if (draftLayout) {
+        const res = await fetch('/api/layouts', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftLayout),
         });
-        const results = await Promise.all(changed.map((df) =>
-          fetch(`/api/media/${df.id}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ category: df.category, isHero: !!df.isHero }),
-          })
-        ));
-        const failed = results.filter((r) => !r.ok).length;
-        if (failed > 0) throw new Error(`${failed} 件の更新に失敗しました`);
-        setFiles(draftFiles);
-        setDraftFiles(null);
+        if (!res.ok) throw new Error('レイアウトの更新に失敗しました');
+        setSavedLayout(draftLayout);
+        setDraftLayout(null);
       }
       if (draftPlans) {
         const changed = draftPlans.filter((dp) => plans.find((p) => p.id === dp.id)?.coverImage !== dp.coverImage);
@@ -358,38 +413,96 @@ export default function AdminPage() {
       showMessage('success', '変更を本番に反映しました');
     } catch (err) {
       showMessage('error', String(err));
-    }
-    finally { setIsPublishing(false); }
+    } finally { setIsPublishing(false); }
   };
 
-  // ─── Layout drop handlers ─────────────────────────────────────────────────
+  // ─── Layout drag-and-drop handlers ───────────────────────────────────────
 
-  const handleLayoutSectionDrop = useCallback((e: React.DragEvent, targetCategory: string) => {
+  /**
+   * Drop on a section:
+   * - Same section → reorder (insert before targetFile)
+   * - Different section → move from source, add to target at targetFile position (or end)
+   */
+  const handleSectionDrop = useCallback((
+    e: React.DragEvent,
+    targetSection: string,
+    targetFile?: MediaFile,
+  ) => {
     e.preventDefault();
-    const file = draggedFile;
-    setDraggedFile(null);
-    setDropTarget(null);
+    e.stopPropagation();
+    const file        = draggedFile;
+    const srcSection  = dragSourceSection;
+    setDraggedFile(null); setDragSourceSection(null); setDropTarget(null);
     if (!file) return;
-    if (targetCategory === 'library') {
-      draftAssignCategory(file.id, 'uncategorized');
-    } else if (file.category !== targetCategory) {
-      draftAssignCategory(file.id, targetCategory);
-    }
-  }, [draggedFile, draftAssignCategory]);
+    const url = file.url;
 
+    setDraftLayout((prev) => {
+      const base = prev ?? savedLayout;
+      // Deep-copy all sections
+      const updated: PageLayouts = {};
+      for (const [k, v] of Object.entries({ ...DEFAULT_LAYOUTS, ...base })) updated[k] = [...v];
+      // Ensure target section exists
+      if (!updated[targetSection]) updated[targetSection] = [];
+
+      if (srcSection === targetSection) {
+        // Reorder within same section
+        const arr = updated[targetSection];
+        const fromIdx = arr.indexOf(url);
+        if (fromIdx !== -1 && targetFile && targetFile.url !== url) {
+          arr.splice(fromIdx, 1);
+          const toIdx = arr.indexOf(targetFile.url);
+          arr.splice(toIdx !== -1 ? toIdx : arr.length, 0, url);
+        }
+      } else {
+        // Remove from source section
+        if (srcSection && updated[srcSection]) {
+          updated[srcSection] = updated[srcSection].filter((u) => u !== url);
+        }
+        // Add to target section (no duplicates)
+        const arr = updated[targetSection];
+        if (!arr.includes(url)) {
+          if (targetFile) {
+            const toIdx = arr.indexOf(targetFile.url);
+            arr.splice(toIdx !== -1 ? toIdx : arr.length, 0, url);
+          } else {
+            arr.push(url);
+          }
+        }
+      }
+      return updated;
+    });
+  }, [draggedFile, dragSourceSection, savedLayout]);
+
+  /** Drop on Media Library → remove from current section */
+  const handleLibraryDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file       = draggedFile;
+    const srcSection = dragSourceSection;
+    setDraggedFile(null); setDragSourceSection(null); setDropTarget(null);
+    if (!file || !srcSection) return;
+    const url = file.url;
+    setDraftLayout((prev) => {
+      const base = prev ?? savedLayout;
+      const updated: PageLayouts = {};
+      for (const [k, v] of Object.entries({ ...DEFAULT_LAYOUTS, ...base })) updated[k] = [...v];
+      if (updated[srcSection]) updated[srcSection] = updated[srcSection].filter((u) => u !== url);
+      return updated;
+    });
+  }, [draggedFile, dragSourceSection, savedLayout]);
+
+  /** Drop image onto a plan cover zone */
   const handlePlanCoverDrop = useCallback((e: React.DragEvent, planId: string) => {
     e.preventDefault();
     const file = draggedFile;
-    setDraggedFile(null);
-    setDropTarget(null);
+    setDraggedFile(null); setDragSourceSection(null); setDropTarget(null);
     if (!file) return;
     draftAssignCover(planId, file.url);
   }, [draggedFile, draftAssignCover]);
 
   // ─── Derived ─────────────────────────────────────────────────────────────
 
-  const imageFiles = files.filter((f) => f.type === 'image');
-  const videoFiles = files.filter((f) => f.type === 'video');
+  const imageFiles    = files.filter((f) => f.type === 'image');
+  const videoFiles    = files.filter((f) => f.type === 'video');
   const displayedFiles = activeTab === 'images' ? imageFiles : videoFiles;
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -403,13 +516,13 @@ export default function AdminPage() {
             <div className="gold-line" />
             <span className="text-gold text-[10px] tracking-[0.5em] font-display uppercase">Administration</span>
           </div>
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
               <h1 className="section-title">{t(translations.admin.title)}</h1>
               <p className="section-subtitle mt-2">{t(translations.admin.subtitle)}</p>
             </div>
             <button onClick={handleLogout}
-              className="mt-1 px-5 py-2 border border-white/10 text-white/40 hover:border-red-500/40 hover:text-red-400 font-display text-[10px] uppercase tracking-[0.3em] transition-all duration-300">
+              className="self-start sm:self-auto mt-1 px-5 py-2 border border-white/10 text-white/40 hover:border-red-500/40 hover:text-red-400 font-display text-[10px] uppercase tracking-[0.3em] transition-all duration-300">
               Sign Out
             </button>
           </div>
@@ -418,7 +531,7 @@ export default function AdminPage() {
 
       {/* Toast */}
       {message && (
-        <div className={`fixed top-24 right-6 z-50 px-6 py-3 border text-sm font-display tracking-widest uppercase ${
+        <div className={`fixed top-24 right-4 sm:right-6 left-4 sm:left-auto z-50 px-6 py-3 border text-sm font-display tracking-widest uppercase ${
           message.type === 'success' ? 'bg-green-900/80 border-green-500/30 text-green-300' : 'bg-red-900/80 border-red-500/30 text-red-300'
         }`}>
           {message.text}
@@ -427,11 +540,11 @@ export default function AdminPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* ── Tabs ── */}
-        <div className="flex border-b border-white/10 mb-8">
+        <div className="flex overflow-x-auto border-b border-white/10 mb-8">
           {(['images', 'videos', 'plans', 'layout'] as Tab[]).map((tab) => (
             <button key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 font-display text-sm uppercase tracking-widest transition-all duration-300 relative ${
+              className={`px-4 sm:px-6 py-3 flex-shrink-0 font-display text-sm uppercase tracking-widest transition-all duration-300 relative ${
                 activeTab === tab ? 'text-gold border-b-2 border-gold' : 'text-white/30 hover:text-white/60'
               }`}>
               {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : 'Layout'}
@@ -476,13 +589,32 @@ export default function AdminPage() {
                   </>
                 )}
               </div>
+              {uploadPreviews.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white/30 text-[10px] font-display uppercase tracking-widest">{uploadPreviews.length} ファイル選択中</span>
+                    <button onClick={() => setUploadPreviews([])} className="text-white/30 hover:text-red-400 text-[10px] font-display uppercase tracking-widest transition-colors">クリア</button>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {uploadPreviews.map((p, i) => (
+                      <div key={i} className="relative aspect-square overflow-hidden border border-white/10 bg-white/5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
+                          <span className="text-[7px] font-display text-white/40 truncate block">{p.name}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-6">
               {[
                 { label: 'Total',  value: displayedFiles.length },
                 { label: '配置済み', value: displayedFiles.filter((f) => getImageUsage(f) !== null).length },
-                { label: '未配置',  value: displayedFiles.filter((f) => getImageUsage(f) === null && f.category !== 'videos').length },
+                { label: '未配置',  value: displayedFiles.filter((f) => getImageUsage(f) === null && f.type !== 'video').length },
               ].map((stat, idx) => (
                 <div key={idx} className="border border-white/5 p-4 text-center">
                   <div className="font-display text-2xl font-bold text-gold mb-1">{stat.value}</div>
@@ -490,6 +622,15 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+
+            {activeTab === 'images' && imageFiles.filter((f) => getImageUsage(f) === null).length > 0 && (
+              <div className="flex justify-end mb-2">
+                <button onClick={handleBulkDeleteUnused} disabled={bulkDeleting}
+                  className="text-[10px] font-display uppercase tracking-widest px-3 py-1.5 border border-red-500/20 text-red-400/60 hover:border-red-400/40 hover:text-red-400 transition-all disabled:opacity-50">
+                  {bulkDeleting ? '削除中...' : `未使用を一括削除 (${imageFiles.filter((f) => getImageUsage(f) === null).length})`}
+                </button>
+              </div>
+            )}
 
             <div className="luxury-card overflow-hidden">
               <table className="w-full text-sm">
@@ -528,7 +669,18 @@ export default function AdminPage() {
                             )}
                           </div>
                         </td>
-                        <td className="p-4 text-white/80 text-sm max-w-[180px] truncate">{file.name}</td>
+                        <td className="p-4 text-white/80 text-sm max-w-[180px]">
+                          <div className="flex items-center gap-1 group/name">
+                            <span className="truncate">{file.name}</span>
+                            <button onClick={() => { setEditingMetaFile(file); setMetaForm({ name: file.name }); }}
+                              className="flex-shrink-0 opacity-0 group-hover/name:opacity-100 text-white/30 hover:text-gold transition-all"
+                              title="名前を編集">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
                         <td className="p-4 hidden md:table-cell">
                           {isUsed
                             ? <span className="border border-gold/30 text-gold/70 px-2 py-0.5 text-[9px] font-display uppercase tracking-widest">{usage}</span>
@@ -570,8 +722,8 @@ export default function AdminPage() {
                 + Add Plan
               </button>
             </div>
-            <div className="luxury-card overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="luxury-card overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left p-4 text-gold text-[10px] font-display uppercase tracking-widest w-16">Order</th>
@@ -625,7 +777,7 @@ export default function AdminPage() {
 
             {/* Plan Form Modal */}
             {showPlanForm && (
-              <div className="fixed inset-0 bg-black/80 z-[200] flex items-start justify-center overflow-y-auto py-12 px-4">
+              <div className="fixed inset-0 bg-black/80 z-[200] flex items-start justify-center overflow-y-auto py-6 sm:py-12 px-4">
                 <div className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 p-8">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="font-display text-gold text-sm uppercase tracking-widest">{editingPlan ? 'Edit Plan' : 'New Plan'}</h2>
@@ -733,54 +885,100 @@ export default function AdminPage() {
 
         {/* ══════════════════ LAYOUT TAB ══════════════════ */}
         {activeTab === 'layout' && (() => {
-          const imgFiles  = layoutFiles.filter((f) => f.type === 'image');
-          const heroFiles = imgFiles.filter((f) => f.category === 'hero');
-          const hotelFiles = imgFiles.filter((f) => f.category === 'hotel');
+          // Resolve URL → MediaFile
+          const urlToFile = (url: string) => files.find((f) => f.url === url);
 
-          const pageOptions: { id: string; label: string; url: string }[] = [
-            { id: 'home',         label: 'Home',         url: '/' },
-            { id: 'plans-list',   label: 'Plans',        url: '/plans' },
-            { id: 'gallery',      label: 'Gallery',      url: '/library' },
-            { id: 'surroundings', label: 'Surroundings', url: '/surroundings' },
+          const pageOptions = [
+            { id: 'home',          label: 'Home',         url: '/' },
+            { id: 'plans-list',    label: 'Plans',        url: '/plans' },
+            { id: 'gallery',       label: 'Gallery',      url: '/library' },
+            { id: 'surroundings',  label: 'Surroundings', url: '/surroundings' },
             ...layoutPlans.map((p) => ({ id: `plan-${p.id}`, label: p.titleEn || p.id, url: `/plans/${p.id}` })),
           ];
 
-          // ── Inline render helpers (called as functions, NOT as React components,
-          //    to avoid remounting on every dragover re-render) ──────────────────
+          // ── Inline render helpers ────────────────────────────────────────────
 
-          const renderSectionImg = (f: MediaFile, showHeroStar = false) => (
-            <div key={f.id}
-              draggable
-              onDragStart={(e) => { e.stopPropagation(); setDraggedFile(f); }}
-              onDragEnd={() => { setDraggedFile(null); setDropTarget(null); }}
-              className={`relative overflow-hidden border aspect-video cursor-grab active:cursor-grabbing group transition-all ${
-                draggedFile?.id === f.id ? 'border-gold opacity-40 scale-95' : 'border-white/10 hover:border-gold/50'
-              }`}
-              title={f.name}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.url} alt={f.name} className="w-full h-full object-cover pointer-events-none" />
-              {/* hover overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
-                <span className="text-white/60 text-[8px] font-display uppercase tracking-widest">drag to move / remove</span>
+          /**
+           * Single image tile within a section.
+           * Dragging it within the same section reorders; dropping it in another section moves it.
+           * Dropping another image ONTO it inserts before this image.
+           */
+          const renderSectionImg = (url: string, section: string) => {
+            const f = urlToFile(url);
+            if (!f) return null;
+            const isBeingDragged = draggedFile?.url === url;
+            const isDropTarget   = dropTarget === `img-${url}` && dragSourceSection === section && !isBeingDragged;
+            return (
+              <div key={url}
+                draggable
+                onDragStart={(e) => { e.stopPropagation(); setDraggedFile(f); setDragSourceSection(section); }}
+                onDragEnd={() => { setDraggedFile(null); setDragSourceSection(null); setDropTarget(null); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropTarget(`img-${url}`); }}
+                onDragLeave={(e) => { e.stopPropagation(); setDropTarget((t) => t === `img-${url}` ? null : t); }}
+                onDrop={(e) => handleSectionDrop(e, section, f)}
+                className={`relative overflow-hidden border aspect-video cursor-grab active:cursor-grabbing group transition-all ${
+                  isBeingDragged ? 'border-gold opacity-40 scale-95'
+                  : isDropTarget  ? 'border-gold ring-1 ring-gold'
+                  : 'border-white/10 hover:border-gold/50'
+                }`}
+                title={f.name}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={f.name} className="w-full h-full object-cover pointer-events-none" />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
+                  <span className="text-white/60 text-[8px] font-display uppercase tracking-widest">drag to reorder / remove</span>
+                </div>
+                {/* Left-edge insert indicator */}
+                {isDropTarget && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gold pointer-events-none" />
+                )}
               </div>
-              {/* Hero initial display star */}
-              {showHeroStar && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); draftSetHero(f.id); }}
-                  className={`absolute top-1 left-1 w-6 h-6 flex items-center justify-center rounded transition-all ${
-                    f.isHero ? 'bg-gold text-black' : 'bg-black/60 text-white/40 hover:text-gold hover:bg-black/80'
-                  }`}
-                  title={f.isHero ? '初期表示 (設定済み)' : '初期表示に設定'}
-                >
-                  ★
-                </button>
-              )}
-            </div>
-          );
+            );
+          };
 
+          /**
+           * Section drop zone: renders ordered images + an "add" placeholder.
+           * Images within the zone can be dropped onto each other to reorder.
+           */
+          const renderSection = (section: string, label: string, cols = 4) => {
+            const urls    = currentLayout[section] ?? [];
+            const dzKey   = `${section}-zone`;
+            const isOver  = dropTarget === dzKey;
+            const colsNum = Math.max(cols, urls.length + 1);
+            return (
+              <div className="luxury-card p-5 overflow-x-auto">
+                <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">{label}</h4>
+                {SECTION_MAX[section] !== undefined && (
+                  <div className={`text-[9px] font-display uppercase tracking-widest mb-2 ${urls.length >= SECTION_MAX[section] ? 'text-amber-400' : 'text-white/20'}`}>
+                    {urls.length} / {SECTION_MAX[section]}{urls.length >= SECTION_MAX[section] ? ' — 上限に達しました' : ''}
+                  </div>
+                )}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); if (dropTarget !== dzKey) setDropTarget(dzKey); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
+                  onDrop={(e) => { if (dropTarget === dzKey) handleSectionDrop(e, section); }}
+                  className={`p-3 border-2 border-dashed rounded transition-all duration-200 min-w-0 ${isOver ? 'border-gold bg-gold/5' : 'border-white/10'}`}
+                  style={{ display: 'grid', gridTemplateColumns: `repeat(${colsNum}, minmax(80px,1fr))`, gap: '0.5rem' }}
+                >
+                  {urls.map((url) => renderSectionImg(url, section))}
+                  <div className={`aspect-video border-2 border-dashed rounded flex items-center justify-center ${isOver ? 'border-gold bg-gold/10' : 'border-white/10'}`}>
+                    <span className="text-[9px] font-display text-white/20 uppercase tracking-widest">
+                      {isOver ? '▼ Drop' : urls.length === 0 ? 'Drop here' : '+ Add'}
+                    </span>
+                  </div>
+                </div>
+                {section === 'home.hero' && urls.length > 0 && (
+                  <p className="text-white/20 text-[8px] font-display uppercase tracking-widest mt-2">
+                    先頭の画像が初期表示。セクション内でドラッグして順番変更可能
+                  </p>
+                )}
+              </div>
+            );
+          };
+
+          /** Plan cover drop zone */
           const renderPlanCover = (plan: PlanEntry) => {
-            const key = `plan-cover-${plan.id}`;
+            const key    = `plan-cover-${plan.id}`;
             const isOver = dropTarget === key;
             return (
               <div key={plan.id}
@@ -807,38 +1005,15 @@ export default function AdminPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); draftAssignCover(plan.id, ''); }}
                       className="absolute top-1 right-1 w-5 h-5 bg-black/70 border border-white/20 text-white/60 hover:text-red-400 hover:border-red-400/40 rounded-sm text-[10px] leading-none flex items-center justify-center transition-all"
-                      title="カバー画像を削除">×</button>
+                      title="カバー画像を削除">×
+                    </button>
                   )}
                 </div>
               </div>
             );
           };
 
-          const renderCatGrid = (cat: string, label: string, cols = 4) => {
-            const catFiles = imgFiles.filter((f) => f.category === cat);
-            const dzKey = `${cat}-drop`;
-            const isOver = dropTarget === dzKey;
-            return (
-              <div className="luxury-card p-5">
-                <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">{label}</h4>
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setDropTarget(dzKey); }}
-                  onDragLeave={() => setDropTarget(null)}
-                  onDrop={(e) => handleLayoutSectionDrop(e, cat)}
-                  className={`p-3 border-2 border-dashed rounded transition-all duration-200 ${isOver ? 'border-gold bg-gold/5' : 'border-white/10'}`}
-                  style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))`, gap: '0.5rem' }}
-                >
-                  {catFiles.map((f) => renderSectionImg(f))}
-                  <div className={`aspect-video border-2 border-dashed rounded flex items-center justify-center ${isOver ? 'border-gold bg-gold/10' : 'border-white/10'}`}>
-                    <span className="text-[9px] font-display text-white/20 uppercase tracking-widest">
-                      {isOver ? '▼ Drop' : catFiles.length === 0 ? 'Drop here' : '+ Add'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          };
-
+          /** Render sections for the currently selected page */
           const renderPageSections = () => {
             if (layoutPage.startsWith('plan-')) {
               const planId = layoutPage.replace('plan-', '');
@@ -850,57 +1025,53 @@ export default function AdminPage() {
                     <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">① Cover Image (top of plan page)</h4>
                     <div className="max-w-xs">{renderPlanCover(plan)}</div>
                   </div>
-                  {renderCatGrid(`plan-${planId}`, '② Plan Photo Gallery', 4)}
+                  {renderSection(`plan.${planId}.gallery`, '② Plan Photo Gallery', 4)}
                 </div>
               );
             }
             switch (layoutPage) {
               case 'home': return (
                 <div className="space-y-4">
-                  {/* Hero Slideshow */}
+                  {renderSection('home.hero', '① Hero Slideshow (先頭画像 = 初期表示)', 4)}
+                  {/* Hotel intro — fixed 3 slots */}
                   <div className="luxury-card p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest">① Hero Slideshow</h4>
-                      {heroFiles.length > 0 && !heroFiles.some((f) => f.isHero) && (
-                        <span className="text-[8px] font-display text-amber-400/60 uppercase tracking-widest">★ 初期表示を選択してください</span>
-                      )}
-                    </div>
-                    <div
-                      onDragOver={(e) => { e.preventDefault(); setDropTarget('hero-drop'); }}
-                      onDragLeave={() => setDropTarget(null)}
-                      onDrop={(e) => handleLayoutSectionDrop(e, 'hero')}
-                      className={`p-3 border-2 border-dashed rounded transition-all ${dropTarget === 'hero-drop' ? 'border-gold bg-gold/5' : 'border-white/10'}`}
-                      style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(heroFiles.length + 1, 4)}, minmax(0,1fr))`, gap: '0.5rem' }}
-                    >
-                      {heroFiles.map((f) => renderSectionImg(f, true))}
-                      <div className={`aspect-video border-2 border-dashed rounded flex items-center justify-center ${dropTarget === 'hero-drop' ? 'border-gold bg-gold/10' : 'border-white/10'}`}>
-                        <span className="text-[9px] font-display text-white/20 uppercase tracking-widest">{dropTarget === 'hero-drop' ? '▼ Drop' : '+ Drop'}</span>
-                      </div>
-                    </div>
-                    {heroFiles.length > 0 && (
-                      <p className="text-white/20 text-[8px] font-display uppercase tracking-widest mt-2">★ ボタンで初期表示 (最初に見せる) 画像を設定</p>
-                    )}
-                  </div>
-                  {/* Hotel intro */}
-                  <div className="luxury-card p-5">
-                    <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">② Hotel Introduction (first 3 shown on Home)</h4>
+                    <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">② Hotel Introduction (最初の3枚が表示)</h4>
                     <div className="grid grid-cols-3 gap-3">
                       {[0, 1, 2].map((i) => {
-                        const k = `hotel-slot-${i}`; const over = dropTarget === k;
+                        const url  = (currentLayout['home.hotel'] ?? [])[i];
+                        const slotKey = `hotel-slot-${i}`;
+                        const over = dropTarget === slotKey;
                         return (
                           <div key={i}
-                            onDragOver={(e) => { e.preventDefault(); setDropTarget(k); }}
+                            onDragOver={(e) => { e.preventDefault(); setDropTarget(slotKey); }}
                             onDragLeave={() => setDropTarget(null)}
-                            onDrop={(e) => handleLayoutSectionDrop(e, 'hotel')}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const file = draggedFile; const src = dragSourceSection;
+                              setDraggedFile(null); setDragSourceSection(null); setDropTarget(null);
+                              if (!file) return;
+                              setDraftLayout((prev) => {
+                                const base = prev ?? savedLayout;
+                                const updated: PageLayouts = {};
+                                for (const [k, v] of Object.entries({ ...DEFAULT_LAYOUTS, ...base })) updated[k] = [...v];
+                                if (src && updated[src]) updated[src] = updated[src].filter((u) => u !== file.url);
+                                const arr = [...(updated['home.hotel'] ?? [])];
+                                const existIdx = arr.indexOf(file.url);
+                                if (existIdx !== -1) arr.splice(existIdx, 1);
+                                arr.splice(i, 0, file.url);
+                                updated['home.hotel'] = arr;
+                                return updated;
+                              });
+                            }}
                             className={`relative border-2 border-dashed rounded overflow-hidden transition-all ${over ? 'border-gold bg-gold/10' : 'border-white/10'}`}
                           >
                             <div className="aspect-[4/3] bg-white/5">
-                              {hotelFiles[i] ? renderSectionImg(hotelFiles[i]) : null}
+                              {url ? renderSectionImg(url, 'home.hotel') : null}
                             </div>
-                            {!hotelFiles[i] && (
+                            {!url && (
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <span className="text-[9px] font-display text-white/40 bg-black/50 px-2 py-0.5">
-                                  {over ? '▼ Drop' : `Empty ${i + 1}`}
+                                  {over ? '▼ Drop' : `Slot ${i + 1}`}
                                 </span>
                               </div>
                             )}
@@ -911,13 +1082,13 @@ export default function AdminPage() {
                   </div>
                   {/* Plans preview */}
                   <div className="luxury-card p-5">
-                    <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">③ Plans Preview (first 3 visible)</h4>
+                    <h4 className="font-display text-white/60 text-[10px] uppercase tracking-widest mb-3">③ Plans Preview (最初の3プランを表示)</h4>
                     {layoutPlans.filter((p) => p.visible).length === 0
                       ? <div className="text-white/20 text-xs font-kaiti italic text-center py-6">No visible plans</div>
                       : <div className="grid grid-cols-3 gap-3">{layoutPlans.filter((p) => p.visible).slice(0, 3).map((p) => renderPlanCover(p))}</div>
                     }
                   </div>
-                  {renderCatGrid('surroundings', '④ Surroundings Preview (4 tiles)', 4)}
+                  {renderSection('home.surroundings', '④ Surroundings Preview (4タイル)', 4)}
                 </div>
               );
               case 'plans-list': return (
@@ -931,11 +1102,15 @@ export default function AdminPage() {
               );
               case 'gallery': return (
                 <div className="space-y-4">
-                  {renderCatGrid('hotel',        '① Hotel Introduction photos', 4)}
-                  {renderCatGrid('surroundings', '② Surroundings photos',        4)}
+                  {renderSection('gallery.hotel',        '① Hotel Photos', 4)}
+                  {renderSection('gallery.surroundings', '② Surroundings Photos', 4)}
                 </div>
               );
-              case 'surroundings': return renderCatGrid('surroundings', 'Surroundings page images', 4);
+              case 'surroundings': return (
+                <div className="space-y-4">
+                  {renderSection('surroundings.spots', 'Spot Images (スポット画像)', 4)}
+                </div>
+              );
               default: return null;
             }
           };
@@ -957,7 +1132,7 @@ export default function AdminPage() {
                       className="px-4 py-1.5 border border-white/30 text-white/70 hover:border-white hover:text-white font-display text-[9px] uppercase tracking-widest transition-all">
                       プレビュー
                     </button>
-                    <button onClick={handlePublish} disabled={isPublishing}
+                    <button onClick={() => setShowPublishConfirm(true)} disabled={isPublishing}
                       className="px-5 py-1.5 bg-gold text-black font-display text-[9px] uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
                       {isPublishing ? '反映中...' : '反映する'}
                     </button>
@@ -965,9 +1140,9 @@ export default function AdminPage() {
                 </div>
               )}
 
-              <div className="flex gap-6">
+              <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                 {/* Left: page selector + media library */}
-                <div className="w-56 flex-shrink-0 space-y-4">
+                <div className="w-full lg:w-56 lg:flex-shrink-0 space-y-4">
                   <div className="luxury-card p-4">
                     <h3 className="font-display text-gold text-[10px] uppercase tracking-widest mb-3">Select Page</h3>
                     <div className="space-y-0.5">
@@ -987,42 +1162,42 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Media Library — drop here to remove from section */}
+                  {/* Media Library — drop here to unplace */}
                   <div
                     onDragOver={(e) => { e.preventDefault(); setDropTarget('library-drop'); }}
                     onDragLeave={() => setDropTarget(null)}
-                    onDrop={(e) => handleLayoutSectionDrop(e, 'library')}
-                    className={`luxury-card p-4 sticky top-24 transition-all duration-200 ${isLibraryOver ? 'ring-2 ring-gold/50' : ''}`}
+                    onDrop={handleLibraryDrop}
+                    className={`luxury-card p-4 lg:sticky top-24 transition-all duration-200 ${isLibraryOver ? 'ring-2 ring-gold/50' : ''}`}
                   >
                     <h3 className="font-display text-gold text-[10px] uppercase tracking-widest mb-1">Media Library</h3>
                     <p className="text-white/20 text-[8px] font-display uppercase tracking-widest mb-3">
-                      {isLibraryOver ? '↓ ここにドロップで配置解除' : 'Drag → section / ここに戻すで解除'}
+                      {isLibraryOver ? '↓ ここにドロップで配置解除' : 'Drag → section へ配置 / ここに戻すで解除'}
                     </p>
-                    <div className="grid grid-cols-3 gap-1.5 max-h-[55vh] overflow-y-auto pr-0.5">
-                      {imgFiles.length === 0
+                    <div className="grid grid-cols-3 gap-1.5 max-h-[40vh] lg:max-h-[55vh] overflow-y-auto pr-0.5">
+                      {imageFiles.length === 0
                         ? <div className="col-span-3 text-white/20 text-xs font-kaiti italic text-center py-6">No images</div>
-                        : imgFiles.map((f) => {
-                          const isUnplaced = f.category === 'uncategorized';
+                        : imageFiles.map((f) => {
+                          const isPlaced = Object.values(currentLayout).some((urls) => urls.includes(f.url))
+                                         || (draftPlans ?? plans).some((p) => p.coverImage === f.url);
                           return (
                             <div key={f.id}
                               draggable
-                              onDragStart={() => setDraggedFile(f)}
-                              onDragEnd={() => { setDraggedFile(null); setDropTarget(null); }}
+                              onDragStart={() => { setDraggedFile(f); setDragSourceSection(null); }}
+                              onDragEnd={() => { setDraggedFile(null); setDragSourceSection(null); setDropTarget(null); }}
                               className={`relative aspect-square overflow-hidden border cursor-grab active:cursor-grabbing transition-all ${
                                 draggedFile?.id === f.id ? 'border-gold opacity-50 scale-95'
-                                : isUnplaced ? 'border-white/15 hover:border-gold/50'
-                                : 'border-gold/25 hover:border-gold/60'
+                                : isPlaced ? 'border-gold/30 hover:border-gold/60'
+                                : 'border-white/15 hover:border-gold/50'
                               }`}
-                              title={`${f.name}\n[${isUnplaced ? '未配置' : f.category}]`}
+                              title={`${f.name}\n[${isPlaced ? '配置済み' : '未配置'}]`}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={f.url} alt={f.name} className="w-full h-full object-cover pointer-events-none" />
                               <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-1 py-0.5">
-                                <span className={`text-[6px] font-display uppercase tracking-widest truncate block ${isUnplaced ? 'text-white/30' : 'text-gold/60'}`}>
-                                  {isUnplaced ? '未配置' : f.category.replace('plan-', '§')}
+                                <span className={`text-[6px] font-display uppercase tracking-widest truncate block ${isPlaced ? 'text-gold/60' : 'text-white/30'}`}>
+                                  {isPlaced ? '配置済み' : '未配置'}
                                 </span>
                               </div>
-                              {f.isHero && <div className="absolute top-1 right-1 w-4 h-4 bg-gold flex items-center justify-center text-black text-[8px]">★</div>}
                             </div>
                           );
                         })
@@ -1045,7 +1220,7 @@ export default function AdminPage() {
                   </div>
                   {!hasLayoutChanges && (
                     <p className="text-white/20 text-[9px] font-display uppercase tracking-widest mb-4">
-                      Library から画像をドロップして配置 / セクション内画像はドラッグで移動・削除
+                      Library から画像をドロップして配置 / セクション内でドラッグして順番変更 / Library に戻すで解除
                     </p>
                   )}
                   {renderPageSections()}
@@ -1056,18 +1231,79 @@ export default function AdminPage() {
         })()}
       </div>
 
+      {/* ══════════════════ PUBLISH CONFIRM MODAL ══════════════════ */}
+      {showPublishConfirm && (
+        <div className="fixed inset-0 bg-black/80 z-[400] flex items-center justify-center px-4">
+          <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 p-6">
+            <h2 className="font-display text-gold text-sm uppercase tracking-widest mb-4">変更を反映する</h2>
+            <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
+              {draftLayout && Object.entries(draftLayout).map(([section, urls]) => {
+                const saved = savedLayout[section] ?? [];
+                if (JSON.stringify(urls) === JSON.stringify(saved)) return null;
+                const label = LAYOUT_SECTION_LABELS[section] ?? section;
+                return (
+                  <div key={section} className="flex items-start gap-2 text-sm">
+                    <span className="text-gold/60 font-display text-[9px] uppercase tracking-widest w-36 flex-shrink-0 mt-0.5">{label}</span>
+                    <span className="text-white/50 text-[11px] font-kaiti">{saved.length}枚 → {urls.length}枚</span>
+                  </div>
+                );
+              })}
+              {draftPlans && draftPlans.filter((dp) => plans.find((p) => p.id === dp.id)?.coverImage !== dp.coverImage).map((dp) => (
+                <div key={dp.id} className="flex items-start gap-2 text-sm">
+                  <span className="text-gold/60 font-display text-[9px] uppercase tracking-widest w-36 flex-shrink-0 mt-0.5">Plan Cover</span>
+                  <span className="text-white/50 text-[11px] font-kaiti">{dp.titleEn || dp.id}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+              <button onClick={() => setShowPublishConfirm(false)}
+                className="px-5 py-2 border border-white/10 text-white/40 hover:text-white font-display text-xs uppercase tracking-widest transition-all">キャンセル</button>
+              <button onClick={async () => { setShowPublishConfirm(false); await handlePublish(); }} disabled={isPublishing}
+                className="px-6 py-2 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
+                {isPublishing ? '反映中...' : '確認して反映'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════ METADATA EDIT MODAL ══════════════════ */}
+      {editingMetaFile && (
+        <div className="fixed inset-0 bg-black/80 z-[400] flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-[#0a0a0a] border border-white/10 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-gold text-sm uppercase tracking-widest">ファイル情報を編集</h2>
+              <button onClick={() => setEditingMetaFile(null)} className="text-white/40 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <div className="mb-2">
+              <div className="relative aspect-video mb-4 overflow-hidden border border-white/10 bg-white/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={editingMetaFile.url} alt="" className="w-full h-full object-contain" />
+              </div>
+              <label className="block text-white/40 text-[10px] uppercase tracking-widest font-display mb-1">表示名 / Alt Text</label>
+              <input
+                value={metaForm.name}
+                onChange={(e) => setMetaForm({ name: e.target.value })}
+                className="w-full bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-gold/50 focus:outline-none text-sm"
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveMeta(); if (e.key === 'Escape') setEditingMetaFile(null); }}
+              />
+              <p className="text-white/20 text-[10px] mt-1 font-display">画像のalt属性および管理画面での表示名に使用されます</p>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+              <button onClick={() => setEditingMetaFile(null)}
+                className="px-4 py-2 border border-white/10 text-white/40 hover:text-white font-display text-xs uppercase tracking-widest transition-all">キャンセル</button>
+              <button onClick={handleSaveMeta} disabled={metaSaving}
+                className="px-6 py-2 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
+                {metaSaving ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════════ PREVIEW MODAL ══════════════════ */}
       {showPreviewModal && (() => {
-        const pImgs = layoutFiles.filter((f) => f.type === 'image');
-        const heroImgs = pImgs.filter((f) => f.category === 'hero');
-        const hotelImgs = pImgs.filter((f) => f.category === 'hotel');
-        const srndImgs  = pImgs.filter((f) => f.category === 'surroundings');
-        const initialHero = heroImgs.find((f) => f.isHero) ?? heroImgs[0];
-
-        const pageLabelMap: Record<string, string> = {
-          home: 'Home', 'plans-list': 'Plans', gallery: 'Gallery', surroundings: 'Surroundings',
-          ...layoutPlans.reduce((acc, p) => ({ ...acc, [`plan-${p.id}`]: p.titleEn || p.id }), {} as Record<string, string>),
-        };
+        const lay = currentLayout;
 
         const ImgBox = ({ url, aspect = 'aspect-video', className = '' }: { url: string; aspect?: string; className?: string }) =>
           url
@@ -1079,66 +1315,66 @@ export default function AdminPage() {
                 <span className="text-white/20 text-[8px] font-display uppercase">No image</span>
               </div>;
 
+        const pageLabelMap: Record<string, string> = {
+          home: 'Home', 'plans-list': 'Plans', gallery: 'Gallery',
+          ...layoutPlans.reduce((acc, p) => ({ ...acc, [`plan-${p.id}`]: p.titleEn || p.id }), {} as Record<string, string>),
+        };
+
         const renderPreview = () => {
           /* ── HOME ── */
-          if (layoutPage === 'home') return (
-            <div className="space-y-0 bg-[#0a0806] rounded overflow-hidden">
-              {/* Hero */}
-              <div className="relative">
-                <ImgBox url={initialHero?.url ?? ''} aspect="aspect-[16/7]" className="w-full" />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60 flex flex-col items-center justify-end pb-8">
-                  <div className="text-center">
-                    <div className="text-[8px] font-display text-gold/80 uppercase tracking-[0.4em] mb-1">Terrace Villa Foresta Asama</div>
-                    <div className="text-white/90 font-serif text-lg leading-tight mb-4">至高の自然体験</div>
-                    <div className="flex gap-1 justify-center">
-                      {heroImgs.slice(0, 5).map((f, i) => (
-                        <div key={f.id} className={`w-1 h-1 rounded-full ${f.isHero || (i === 0 && !heroImgs.some(h => h.isHero)) ? 'bg-gold' : 'bg-white/30'}`} />
-                      ))}
+          if (layoutPage === 'home') {
+            const heroUrls = lay['home.hero'] ?? [];
+            const hotelUrls = lay['home.hotel'] ?? [];
+            const srndUrls  = lay['home.surroundings'] ?? [];
+            return (
+              <div className="space-y-0 bg-[#0a0806] rounded overflow-hidden">
+                {/* Hero */}
+                <div className="relative">
+                  <ImgBox url={heroUrls[0] ?? ''} aspect="aspect-[16/7]" className="w-full" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60 flex flex-col items-center justify-end pb-8">
+                    <div className="text-center">
+                      <div className="text-[8px] font-display text-gold/80 uppercase tracking-[0.4em] mb-1">Terrace Villa Foresta Asama</div>
+                      <div className="text-white/90 font-serif text-lg leading-tight mb-4">至高の自然体験</div>
+                      <div className="flex gap-1 justify-center">
+                        {heroUrls.slice(0, 5).map((_, i) => (
+                          <div key={i} className={`w-1 h-1 rounded-full ${i === 0 ? 'bg-gold' : 'bg-white/30'}`} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              {/* Hotel intro */}
-              <div className="bg-[#0d0b09] px-6 py-5">
-                <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-1">Hotel Introduction</div>
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  {hotelImgs.slice(0, 3).map((f) => (
-                    <ImgBox key={f.id} url={f.url} aspect="aspect-[4/3]" />
-                  ))}
-                  {Array.from({ length: Math.max(0, 3 - hotelImgs.length) }).map((_, i) => (
-                    <ImgBox key={`empty-${i}`} url="" aspect="aspect-[4/3]" />
-                  ))}
+                {/* Hotel intro */}
+                <div className="bg-[#0d0b09] px-6 py-5">
+                  <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-1">Hotel Introduction</div>
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    {[0, 1, 2].map((i) => <ImgBox key={i} url={hotelUrls[i] ?? ''} aspect="aspect-[4/3]" />)}
+                  </div>
                 </div>
-              </div>
-              {/* Plans */}
-              <div className="bg-[#0a0806] px-6 py-5">
-                <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-3">Travel Plans</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {layoutPlans.filter((p) => p.visible).slice(0, 3).map((p) => (
-                    <div key={p.id} className="bg-white/5 overflow-hidden rounded-sm">
-                      <ImgBox url={p.coverImage} aspect="aspect-[4/3]" />
-                      <div className="p-2">
-                        <div className="text-white/70 text-[8px] font-display uppercase tracking-widest truncate">{p.titleEn || p.id}</div>
-                        <div className="text-gold/60 text-[8px] font-display">{p.price}</div>
+                {/* Plans */}
+                <div className="bg-[#0a0806] px-6 py-5">
+                  <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-3">Travel Plans</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {layoutPlans.filter((p) => p.visible).slice(0, 3).map((p) => (
+                      <div key={p.id} className="bg-white/5 overflow-hidden rounded-sm">
+                        <ImgBox url={p.coverImage} aspect="aspect-[4/3]" />
+                        <div className="p-2">
+                          <div className="text-white/70 text-[8px] font-display uppercase tracking-widest truncate">{p.titleEn || p.id}</div>
+                          <div className="text-gold/60 text-[8px] font-display">{p.price}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+                {/* Surroundings */}
+                <div className="bg-[#0d0b09] px-6 py-5">
+                  <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-3">Surroundings</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[0, 1, 2, 3].map((i) => <ImgBox key={i} url={srndUrls[i] ?? ''} aspect="aspect-[4/3]" />)}
+                  </div>
                 </div>
               </div>
-              {/* Surroundings */}
-              <div className="bg-[#0d0b09] px-6 py-5">
-                <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-3">Surroundings</div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {srndImgs.slice(0, 4).map((f) => (
-                    <ImgBox key={f.id} url={f.url} aspect="aspect-[4/3]" />
-                  ))}
-                  {Array.from({ length: Math.max(0, 4 - srndImgs.length) }).map((_, i) => (
-                    <ImgBox key={`empty-${i}`} url="" aspect="aspect-[4/3]" />
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
+            );
+          }
 
           /* ── PLANS LIST ── */
           if (layoutPage === 'plans-list') return (
@@ -1160,42 +1396,33 @@ export default function AdminPage() {
           );
 
           /* ── GALLERY ── */
-          if (layoutPage === 'gallery') return (
-            <div className="bg-[#0a0806] rounded overflow-hidden p-4 space-y-4">
-              <div>
-                <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-2">Hotel Photos</div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {hotelImgs.map((f) => <ImgBox key={f.id} url={f.url} aspect="aspect-[4/3]" />)}
-                  {hotelImgs.length === 0 && <ImgBox url="" aspect="aspect-[4/3]" className="col-span-4" />}
+          if (layoutPage === 'gallery') {
+            const hotelUrls = lay['gallery.hotel'] ?? [];
+            const srndUrls  = lay['gallery.surroundings'] ?? [];
+            return (
+              <div className="bg-[#0a0806] rounded overflow-hidden p-4 space-y-4">
+                <div>
+                  <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-2">Hotel Photos</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {hotelUrls.length > 0 ? hotelUrls.map((url, i) => <ImgBox key={i} url={url} aspect="aspect-[4/3]" />) : <ImgBox url="" aspect="aspect-[4/3]" className="col-span-4" />}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-2">Surroundings</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {srndUrls.length > 0 ? srndUrls.map((url, i) => <ImgBox key={i} url={url} aspect="aspect-[4/3]" />) : <ImgBox url="" aspect="aspect-[4/3]" className="col-span-4" />}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-2">Surroundings</div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {srndImgs.map((f) => <ImgBox key={f.id} url={f.url} aspect="aspect-[4/3]" />)}
-                  {srndImgs.length === 0 && <ImgBox url="" aspect="aspect-[4/3]" className="col-span-4" />}
-                </div>
-              </div>
-            </div>
-          );
-
-          /* ── SURROUNDINGS ── */
-          if (layoutPage === 'surroundings') return (
-            <div className="bg-[#0a0806] rounded overflow-hidden p-4">
-              <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-2">Surroundings</div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {srndImgs.map((f) => <ImgBox key={f.id} url={f.url} aspect="aspect-[4/3]" />)}
-                {srndImgs.length === 0 && <ImgBox url="" aspect="aspect-[4/3]" className="col-span-4" />}
-              </div>
-            </div>
-          );
+            );
+          }
 
           /* ── PLAN DETAIL ── */
           if (layoutPage.startsWith('plan-')) {
             const planId = layoutPage.replace('plan-', '');
-            const plan = layoutPlans.find((p) => p.id === planId);
+            const plan   = layoutPlans.find((p) => p.id === planId);
             if (!plan) return <div className="text-white/20 text-sm font-kaiti italic text-center py-8">Plan not found.</div>;
-            const galleryImgs = pImgs.filter((f) => f.category === `plan-${planId}`);
+            const galleryUrls = lay[`plan.${planId}.gallery`] ?? [];
             return (
               <div className="bg-[#0a0806] rounded overflow-hidden">
                 <ImgBox url={plan.coverImage} aspect="aspect-[16/7]" className="w-full" />
@@ -1203,11 +1430,11 @@ export default function AdminPage() {
                   <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-1">{plan.tagEn || 'Plan'}</div>
                   <div className="text-white/80 font-serif text-sm mb-3">{plan.titleEn || plan.id}</div>
                   <div className="text-gold/70 text-[8px] font-display mb-4">{plan.price} · {plan.duration} days</div>
-                  {galleryImgs.length > 0 && (
+                  {galleryUrls.length > 0 && (
                     <div>
                       <div className="text-[7px] font-display text-gold/60 uppercase tracking-[0.4em] mb-2">Photo Gallery</div>
                       <div className="grid grid-cols-4 gap-1.5">
-                        {galleryImgs.slice(0, 8).map((f) => <ImgBox key={f.id} url={f.url} aspect="aspect-[4/3]" />)}
+                        {galleryUrls.slice(0, 8).map((url, i) => <ImgBox key={i} url={url} aspect="aspect-[4/3]" />)}
                       </div>
                     </div>
                   )}
@@ -1220,7 +1447,7 @@ export default function AdminPage() {
         };
 
         return (
-          <div className="fixed inset-0 bg-black/90 z-[300] flex items-start justify-center overflow-y-auto py-8 px-4">
+          <div className="fixed inset-0 bg-black/90 z-[300] flex items-start justify-center overflow-y-auto py-4 sm:py-8 px-3 sm:px-4">
             <div className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10">
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                 <div>

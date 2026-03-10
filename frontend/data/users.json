@@ -1,0 +1,9 @@
+[
+  {
+    "id": "1",
+    "username": "admin",
+    "passwordHash": "8d7863e0a63c74d8a7e0fa603e02d25efc87dee70fbca6c460e07a2bb37b8bb3",
+    "role": "admin",
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  }
+]

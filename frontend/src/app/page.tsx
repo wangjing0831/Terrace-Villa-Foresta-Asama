@@ -109,26 +109,26 @@ export default function HomePage() {
   const [plans, setPlans]       = useState<PlanEntry[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // ─── Fetch media and plans on mount ────────────────────────────────────────
+  // ─── Fetch layout, media and plans on mount ──────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
-        const [heroRes, hotelRes, surroundingsRes, videoRes, plansRes] = await Promise.all([
-          fetch('/api/media/images?category=hero'),
-          fetch('/api/media/images?category=hotel'),
-          fetch('/api/media/images?category=surroundings'),
+        const [layoutRes, allImgRes, videoRes, plansRes] = await Promise.all([
+          fetch('/api/layouts'),
+          fetch('/api/media/images'),
           fetch('/api/media/videos'),
           fetch('/api/plans?public=1'),
         ]);
-        const heroes: MediaItem[]       = heroRes.ok         ? await heroRes.json()         : [];
-        const hotel: MediaItem[]        = hotelRes.ok        ? await hotelRes.json()        : [];
-        const surroundings: MediaItem[] = surroundingsRes.ok ? await surroundingsRes.json() : [];
-        const videos: MediaItem[]       = videoRes.ok        ? await videoRes.json()        : [];
-        const plansData: PlanEntry[]    = plansRes.ok        ? await plansRes.json()        : [];
+        const layout: Record<string, string[]> = layoutRes.ok ? await layoutRes.json() : {};
+        const allImgs: MediaItem[]  = allImgRes.ok ? await allImgRes.json() : [];
+        const videos: MediaItem[]   = videoRes.ok  ? await videoRes.json()  : [];
+        const plansData: PlanEntry[] = plansRes.ok ? await plansRes.json()  : [];
 
-        setHeroImages(heroes);
-        setHotelImages(hotel);
-        setSurroundingsImages(surroundings);
+        // Map layout URL arrays to MediaItem objects
+        const urlToItem = (url: string) => allImgs.find((img) => img.url === url) ?? { id: url, url, name: '', type: 'image' as const, category: '' };
+        setHeroImages((layout['home.hero'] ?? []).map(urlToItem));
+        setHotelImages((layout['home.hotel'] ?? []).map(urlToItem));
+        setSurroundingsImages((layout['home.surroundings'] ?? []).map(urlToItem));
         if (videos.length > 0) setVideoSrc(videos[0].url);
         setPlans(plansData);
       } catch {
@@ -194,7 +194,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-dark/90" />
 
         {/* Hero Content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pt-20">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-20">
           <div className="flex items-center gap-4 mb-6 animate-fade-in-up">
             <div className="gold-line" />
             <span className="text-gold text-xs tracking-[0.6em] font-display uppercase">
@@ -203,10 +203,10 @@ export default function HomePage() {
             <div className="gold-line" />
           </div>
 
-          <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold text-white tracking-tight mb-4 uppercase animate-fade-in-up delay-100">
+          <h1 className="font-display text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white tracking-tight mb-4 uppercase animate-fade-in-up delay-100">
             Terrace Villa
           </h1>
-          <h2 className="font-display text-3xl md:text-5xl lg:text-6xl font-bold text-gold tracking-widest mb-8 uppercase animate-fade-in-up delay-200">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-gold tracking-widest mb-8 uppercase animate-fade-in-up delay-200">
             Foresta Asama
           </h2>
 
@@ -243,7 +243,7 @@ export default function HomePage() {
         </div>
 
         {/* Scroll Indicator */}
-        <div className="absolute bottom-8 right-8 flex flex-col items-center gap-2 text-white/20">
+        <div className="absolute bottom-8 right-8 hidden sm:flex flex-col items-center gap-2 text-white/20">
           <div className="writing-vertical-rl text-[10px] tracking-[0.4em] font-display uppercase">
             Scroll
           </div>
@@ -428,7 +428,7 @@ export default function HomePage() {
             <p className="section-subtitle max-w-xl mx-auto">{t(translations.plans.subtitle)}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {plans.slice(0, 3).map((plan) => {
               const tag = getPlanTag(plan);
               const coverSrc = plan.coverImage || `/images/plans/${plan.id}.jpg`;

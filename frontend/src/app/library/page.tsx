@@ -31,13 +31,22 @@ export default function LibraryPage() {
   const [lightboxIndex, setLightboxIndex]   = useState(0);
   const [imageErrors, setImageErrors]       = useState<Record<string, boolean>>({});
 
-  // ─── Fetch all uploaded images from Next.js API ───────────────────────────
+  // ─── Fetch gallery images from layout API ────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/media/images');
-        const data: MediaItem[] = res.ok ? await res.json() : [];
-        setImages(data);
+        const [layoutRes, allImgRes] = await Promise.all([
+          fetch('/api/layouts'),
+          fetch('/api/media/images'),
+        ]);
+        const layout: Record<string, string[]> = layoutRes.ok ? await layoutRes.json() : {};
+        const allImgs: MediaItem[] = allImgRes.ok ? await allImgRes.json() : [];
+        const urlToItem = (url: string): MediaItem | undefined => allImgs.find((img) => img.url === url);
+        const hotelUrls = layout['gallery.hotel'] ?? [];
+        const srndUrls  = layout['gallery.surroundings'] ?? [];
+        const hotel     = hotelUrls.map(urlToItem).filter(Boolean).map((img) => ({ ...img!, category: 'hotel' }));
+        const srnd      = srndUrls.map(urlToItem).filter(Boolean).map((img) => ({ ...img!, category: 'surroundings' }));
+        setImages([...hotel, ...srnd]);
       } catch {
         setImages([]);
       } finally {
@@ -47,7 +56,7 @@ export default function LibraryPage() {
     load();
   }, []);
 
-  // ─── Filter by selected category ─────────────────────────────────────────
+  // ─── Filter by selected section ──────────────────────────────────────────
   const filtered =
     activeCategory === 'all'
       ? images
@@ -199,7 +208,7 @@ export default function LibraryPage() {
           onClick={closeLightbox}
         >
           <div
-            className="relative w-full max-w-5xl mx-auto px-16"
+            className="relative w-full max-w-5xl mx-auto px-8 sm:px-16"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative w-full" style={{ minHeight: '300px' }}>
@@ -238,7 +247,7 @@ export default function LibraryPage() {
             {/* Close */}
             <button
               onClick={closeLightbox}
-              className="absolute -top-8 right-16 text-white/40 hover:text-gold transition-colors duration-300 text-3xl leading-none"
+              className="absolute -top-8 right-8 sm:right-16 text-white/40 hover:text-gold transition-colors duration-300 text-3xl leading-none"
             >
               ×
             </button>

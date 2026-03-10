@@ -101,6 +101,11 @@
 }
 
 @layer utilities {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   .writing-vertical-rl {
     writing-mode: vertical-rl;
   }

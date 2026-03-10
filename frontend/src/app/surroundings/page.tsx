@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
@@ -173,6 +173,17 @@ export default function SurroundingsPage() {
   const { t, language } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [spotImageUrls, setSpotImageUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/layouts')
+      .then((r) => r.ok ? r.json() : {})
+      .then((layout: Record<string, string[]>) => {
+        const urls = layout['surroundings.spots'] ?? [];
+        if (urls.length > 0) setSpotImageUrls(urls);
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered =
     activeCategory === 'all'
@@ -184,7 +195,7 @@ export default function SurroundingsPage() {
   return (
     <div className="min-h-screen bg-dark pt-20">
       {/* Hero */}
-      <section className="relative py-24 px-6 overflow-hidden">
+      <section className="relative py-16 sm:py-24 px-4 sm:px-6 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-white/2 to-transparent" />
         <div className="max-w-7xl mx-auto relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -217,7 +228,7 @@ export default function SurroundingsPage() {
               ].map((stat, idx) => (
                 <div
                   key={idx}
-                  className="border border-white/5 p-6 text-center hover:border-gold/20 transition-all duration-300"
+                  className="border border-white/5 p-4 sm:p-6 text-center hover:border-gold/20 transition-all duration-300"
                 >
                   <div className="font-display text-2xl font-bold text-gold mb-2">
                     {stat.num}
@@ -233,7 +244,7 @@ export default function SurroundingsPage() {
       </section>
 
       {/* Category Filter */}
-      <section className="px-6 mb-12 border-t border-white/5 pt-12">
+      <section className="px-4 sm:px-6 mb-8 sm:mb-12 border-t border-white/5 pt-12">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-2">
             {CATEGORIES.map((cat) => (
@@ -256,16 +267,19 @@ export default function SurroundingsPage() {
       </section>
 
       {/* Spots Grid */}
-      <section className="px-6 pb-24">
+      <section className="px-4 sm:px-6 pb-16 sm:pb-24">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((spot) => (
+            {filtered.map((spot) => {
+              const spotIdx = spots.indexOf(spot);
+              const spotImage = spotImageUrls[spotIdx] ?? spot.image;
+              return (
               <div key={spot.id} className="luxury-card group overflow-hidden">
                 {/* Image */}
                 <div className="relative aspect-[4/3] overflow-hidden bg-white/5">
                   {!imageErrors[spot.id] ? (
                     <Image
-                      src={spot.image}
+                      src={spotImage}
                       alt={spot.name[lang]}
                       fill
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -299,7 +313,7 @@ export default function SurroundingsPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <h3 className="font-serif text-white text-xl font-bold mb-3 group-hover:text-gold transition-colors duration-300">
                     {spot.name[lang]}
                   </h3>
@@ -320,7 +334,8 @@ export default function SurroundingsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -340,7 +355,7 @@ export default function SurroundingsPage() {
           </h2>
           <div className="gold-divider w-48 mx-auto mb-8" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
               {
                 icon: '🚄',
@@ -358,7 +373,7 @@ export default function SurroundingsPage() {
                 desc: { zh: '定制包机服务可预约', ja: 'チャーター便予約可能', en: 'Charter service available' },
               },
             ].map((item, idx) => (
-              <div key={idx} className="border border-white/5 p-6 text-center hover:border-gold/20 transition-all duration-300">
+              <div key={idx} className="border border-white/5 p-4 sm:p-6 text-center hover:border-gold/20 transition-all duration-300">
                 <div className="text-3xl mb-3">{item.icon}</div>
                 <h3 className="font-display text-gold text-sm uppercase tracking-widest mb-2">
                   {t(item.title)}

@@ -44,7 +44,7 @@ export default function PlansPage() {
   return (
     <div className="min-h-screen bg-dark pt-20">
       {/* Hero */}
-      <section className="relative py-24 px-6">
+      <section className="relative py-16 sm:py-24 px-4 sm:px-6">
         <div className="absolute inset-0 bg-gradient-to-b from-white/2 to-transparent" />
         <div className="max-w-7xl mx-auto text-center relative">
           <div className="flex items-center justify-center gap-4 mb-6">
@@ -59,14 +59,14 @@ export default function PlansPage() {
       </section>
 
       {/* Grid */}
-      <section className="px-6 pb-24">
+      <section className="px-4 sm:px-6 pb-16 sm:pb-24">
         <div className="max-w-7xl mx-auto">
           {loading ? (
             <div className="text-center py-24 text-gold/40 font-display text-xs uppercase tracking-widest animate-pulse">Loading...</div>
           ) : plans.length === 0 ? (
             <div className="text-center py-24 text-white/20 font-kaiti italic">No plans available.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {plans.map((plan) => {
                 const tag = getTag(plan);
                 return (
