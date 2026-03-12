@@ -10,6 +10,8 @@ const DEFAULT_LAYOUTS: Record<string, string[]> = {
   'surroundings.spots':   [],
 };
 
+const NO_CACHE = { 'Cache-Control': 'no-store' };
+
 export async function GET() {
   try {
     const db = getDb();
@@ -19,10 +21,10 @@ export async function GET() {
       const urls = typeof r.image_urls === 'string' ? JSON.parse(r.image_urls) : r.image_urls;
       layouts[r.section_key] = urls;
     }
-    return NextResponse.json(layouts);
+    return NextResponse.json(layouts, { headers: NO_CACHE });
   } catch (err) {
     console.error('[layouts GET]', err);
-    return NextResponse.json(DEFAULT_LAYOUTS);
+    return NextResponse.json(DEFAULT_LAYOUTS, { headers: NO_CACHE });
   }
 }
 

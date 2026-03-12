@@ -23,9 +23,9 @@ export async function GET(request: Request) {
       uploadDate: r.upload_date,
       isHero:     r.is_hero === 1,
       s3Key:      r.s3_key,
-    })));
+    })), { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     console.error('[media/images]', err);
-    return NextResponse.json([]);
+    return NextResponse.json([], { headers: { 'Cache-Control': 'no-store' } });
   }
 }

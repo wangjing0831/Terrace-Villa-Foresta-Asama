@@ -12,7 +12,7 @@ export async function GET(
     const db = getDb();
     const [rows] = await db.query('SELECT * FROM plans WHERE id = ?', [id]) as any[][];
     if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(rowToPlan(rows[0]));
+    return NextResponse.json(rowToPlan(rows[0]), { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
