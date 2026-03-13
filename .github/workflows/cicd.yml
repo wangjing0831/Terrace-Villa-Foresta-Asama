@@ -2,7 +2,7 @@ name: CI/CD — Foresta Asama
 
 on:
   push:
-    branches: [master]
+    branches: [master, future]
   workflow_dispatch:
 
 permissions:
