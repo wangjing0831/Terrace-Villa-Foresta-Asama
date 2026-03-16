@@ -105,8 +105,10 @@ export default function PlanDetailPage() {
   const planId = params.id as string;
 
   useEffect(() => {
+    if (!planId) return;
     const load = async () => {
       setLoading(true);
+      setNotFound(false);
       try {
         const [planRes, layoutRes] = await Promise.all([
           fetch(`/api/plans/${planId}`),
