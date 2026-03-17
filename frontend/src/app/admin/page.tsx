@@ -312,7 +312,7 @@ export default function AdminPage() {
     if (!window.confirm('Are you sure you want to delete this file?')) return;
     try {
       const res = await fetch(`/api/media/${id}`, { method: 'DELETE' });
-      if (res.ok) setFiles((prev) => prev.filter((f) => f.id !== id));
+      if (res.ok) { setFiles((prev) => prev.filter((f) => f.id !== id)); showMessage('success', 'ファイルを削除しました'); }
       else showMessage('error', t(translations.common.error));
     } catch { showMessage('error', t(translations.common.error)); }
   };
@@ -328,7 +328,8 @@ export default function AdminPage() {
       if (res.ok) {
         const updated: PlanEntry = await res.json();
         setPlans((prev) => prev.map((p) => p.id === updated.id ? updated : p));
-      }
+        showMessage('success', updated.visible ? '表示にしました' : '非表示にしました');
+      } else { showMessage('error', t(translations.common.error)); }
     } catch { showMessage('error', t(translations.common.error)); }
   };
 
@@ -336,7 +337,7 @@ export default function AdminPage() {
     if (!window.confirm('Delete this plan? This cannot be undone.')) return;
     try {
       const res = await fetch(`/api/plans/${id}`, { method: 'DELETE' });
-      if (res.ok) setPlans((prev) => prev.filter((p) => p.id !== id));
+      if (res.ok) { setPlans((prev) => prev.filter((p) => p.id !== id)); showMessage('success', 'プランを削除しました'); }
       else showMessage('error', t(translations.common.error));
     } catch { showMessage('error', t(translations.common.error)); }
   };
@@ -1005,11 +1006,17 @@ export default function AdminPage() {
           // Resolve URL → MediaFile
           const urlToFile = (url: string) => files.find((f) => f.url === url);
 
-          const pageOptions = [
+          const basePageOptions = [
             { id: 'home',         label: 'Home',         url: '/' },
             { id: 'gallery',      label: 'Gallery',      url: '/library' },
             { id: 'surroundings', label: 'Surroundings', url: '/surroundings' },
           ];
+          const planPageOptions = plans.map((p) => ({
+            id: `plan-${p.id}`,
+            label: p.titleEn || p.titleJa || p.id,
+            url: `/plans/${p.id}`,
+          }));
+          const pageOptions = [...basePageOptions, ...planPageOptions];
 
           // ── Inline render helpers ────────────────────────────────────────────
 
@@ -1174,7 +1181,17 @@ export default function AdminPage() {
                   {renderSection('surroundings.spots', 'Spot Images (スポット画像)', 4)}
                 </div>
               );
-              default: return null;
+              default: {
+                if (layoutPage.startsWith('plan-')) {
+                  const planId = layoutPage.replace('plan-', '');
+                  return (
+                    <div className="space-y-4">
+                      {renderSection(`plan.${planId}.gallery`, 'Gallery Images (ギャラリー画像)', 4)}
+                    </div>
+                  );
+                }
+                return null;
+              }
             }
           };
 
@@ -1209,14 +1226,32 @@ export default function AdminPage() {
                   <div className="luxury-card p-4">
                     <h3 className="font-display text-gold text-[10px] uppercase tracking-widest mb-3">Select Page</h3>
                     <div className="space-y-0.5">
-                      {pageOptions.map((pg) => (
+                      {basePageOptions.map((pg) => (
                         <button key={pg.id}
                           onClick={() => { setLayoutPage(pg.id); setDropTarget(null); }}
                           className={`w-full text-left px-3 py-2 transition-all duration-200 flex items-center justify-between group ${
                             layoutPage === pg.id
                               ? 'bg-gold/10 border-l-2 border-gold text-gold'
                               : 'text-white/40 hover:text-white/70 border-l-2 border-transparent'
-                          } ${pg.id.startsWith('plan-') ? 'pl-5' : ''}`}
+                          }`}
+                        >
+                          <span className="font-display text-[10px] uppercase tracking-widest truncate">{pg.label}</span>
+                          <span className="text-[8px] text-white/20 font-display ml-1 flex-shrink-0 group-hover:text-white/40">{pg.url}</span>
+                        </button>
+                      ))}
+                      {planPageOptions.length > 0 && (
+                        <div className="pt-3 pb-1 px-3">
+                          <span className="text-[8px] font-display text-white/20 uppercase tracking-[0.4em]">Plans</span>
+                        </div>
+                      )}
+                      {planPageOptions.map((pg) => (
+                        <button key={pg.id}
+                          onClick={() => { setLayoutPage(pg.id); setDropTarget(null); }}
+                          className={`w-full text-left pl-5 pr-3 py-2 transition-all duration-200 flex items-center justify-between group ${
+                            layoutPage === pg.id
+                              ? 'bg-gold/10 border-l-2 border-gold text-gold'
+                              : 'text-white/40 hover:text-white/70 border-l-2 border-transparent'
+                          }`}
                         >
                           <span className="font-display text-[10px] uppercase tracking-widest truncate">{pg.label}</span>
                           <span className="text-[8px] text-white/20 font-display ml-1 flex-shrink-0 group-hover:text-white/40">{pg.url}</span>
