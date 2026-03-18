@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const REGION = process.env.AWS_REGION || 'ap-northeast-1';
-const BUCKET  = process.env.S3_BUCKET  || 'terrace-villa-foresta-asama-assets';
+const BUCKET  = process.env.S3_BUCKET  || 'terrace-villa-foresta-asama-prod';
 
 const client = new S3Client({ region: REGION });
 

@@ -11,15 +11,15 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  AWS_ACCOUNT_ID: "508985564091"
-  ECR_FRONTEND: 508985564091.dkr.ecr.ap-northeast-1.amazonaws.com/foresta-asama-frontend
-  ECR_BACKEND: 508985564091.dkr.ecr.ap-northeast-1.amazonaws.com/foresta-asama-backend
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_FRONTEND: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-1.amazonaws.com/foresta-asama-frontend
+  ECR_BACKEND: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-1.amazonaws.com/foresta-asama-backend
   ECS_CLUSTER: foresta-asama-cluster
   ECS_SERVICE_FRONTEND: foresta-asama-frontend
   ECS_SERVICE_BACKEND: foresta-asama-backend
   CODEBUILD_FRONTEND: foresta-asama-frontend-build
   CODEBUILD_BACKEND: foresta-asama-backend-build
-  IAM_ROLE: arn:aws:iam::508985564091:role/foresta-asama-github-actions-role
+  IAM_ROLE: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/foresta-asama-github-actions-role
 
 jobs:
   # ----------------------------------------------------------------
