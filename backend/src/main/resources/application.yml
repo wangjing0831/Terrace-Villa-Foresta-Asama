@@ -33,7 +33,7 @@ media:
   local-path: ${user.dir}/../data/local-media
   # S3 configuration (production)
   s3:
-    bucket-name: ${AWS_S3_BUCKET:terrace-villa-foresta-asama}
+    bucket-name: ${AWS_S3_BUCKET:terrace-villa-foresta-asama-prod}
     region: ${AWS_REGION:ap-northeast-1}
     presigned-url-expiry: 3600  # seconds
 

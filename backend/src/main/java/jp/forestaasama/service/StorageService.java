@@ -27,7 +27,7 @@ public class StorageService {
     @Value("${media.local-path:./data/local-media}")
     private String localPath;
 
-    @Value("${media.s3.bucket-name:terrace-villa-foresta-asama}")
+    @Value("${media.s3.bucket-name:terrace-villa-foresta-asama-prod}")
     private String bucketName;
 
     @Value("${media.s3.region:ap-northeast-1}")
