@@ -13,9 +13,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/content")
 @RequiredArgsConstructor
 public class ContentController {
+
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> health() {
+        return ResponseEntity.ok(Map.of("status", "UP"));
+    }
+
+    @GetMapping("/")
+    public ResponseEntity<Map<String, Object>> root() {
+        return ResponseEntity.ok(Map.of("status", "UP"));
+    }
 
     @Value("${content.yaml-path:./data/content}")
     private String yamlPath;
@@ -23,7 +32,7 @@ public class ContentController {
     /**
      * GET /api/content/hotel - Get hotel content
      */
-    @GetMapping("/hotel")
+    @GetMapping("/api/content/hotel")
     public ResponseEntity<Map<String, Object>> getHotelContent() {
         return ResponseEntity.ok(loadYaml("hotel.yml"));
     }
@@ -31,7 +40,7 @@ public class ContentController {
     /**
      * GET /api/content/plans - Get travel plans
      */
-    @GetMapping("/plans")
+    @GetMapping("/api/content/plans")
     public ResponseEntity<Map<String, Object>> getPlans() {
         return ResponseEntity.ok(loadYaml("plans.yml"));
     }
@@ -39,7 +48,7 @@ public class ContentController {
     /**
      * GET /api/content/plans/{id} - Get a specific plan
      */
-    @GetMapping("/plans/{id}")
+    @GetMapping("/api/content/plans/{id}")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getPlan(@PathVariable String id) {
         Map<String, Object> plans = loadYaml("plans.yml");
@@ -60,7 +69,7 @@ public class ContentController {
     /**
      * GET /api/content/surroundings - Get surroundings content
      */
-    @GetMapping("/surroundings")
+    @GetMapping("/api/content/surroundings")
     public ResponseEntity<Map<String, Object>> getSurroundings() {
         return ResponseEntity.ok(loadYaml("surroundings.yml"));
     }
