@@ -2,11 +2,12 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 
 const REGION = process.env.AWS_REGION || 'ap-northeast-1';
 const BUCKET  = process.env.S3_BUCKET  || 'terrace-villa-foresta-asama-prod';
+const CDN     = process.env.CDN_DOMAIN  || 'd143jkdkye8i79.cloudfront.net';
 
 const client = new S3Client({ region: REGION });
 
 export function s3Url(key: string): string {
-  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+  return `https://${CDN}/${key}`;
 }
 
 export async function putS3(
