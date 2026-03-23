@@ -1,3 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-export { default } from '@/components/HomePage';
+import HomePage from '@/components/HomePage';
+
+export default function Page() {
+  return <HomePage />;
+}
