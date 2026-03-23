@@ -11,6 +11,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.amazonaws.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'd143jkdkye8i79.cloudfront.net',
+      },
     ],
     // Allow locally uploaded images (served from /uploads/*)
     unoptimized: false,

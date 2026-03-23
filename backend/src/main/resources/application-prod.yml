@@ -10,6 +10,10 @@ spring:
       ddl-auto: update
     database-platform: org.hibernate.dialect.MySQL8Dialect
 
+cors:
+  allowed-origins:
+    - https://d143jkdkye8i79.cloudfront.net
+
 # Prod: use S3
 media:
   storage-mode: s3
