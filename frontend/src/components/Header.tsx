@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Language } from '@/i18n/translations';
+import ContactModal from '@/components/ContactModal';
 
 const navItems = [
   { key: 'home',         href: '/',             label: 'Home' },
@@ -24,6 +25,7 @@ export default function Header() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -89,6 +91,14 @@ export default function Header() {
             ))}
           </div>
 
+          {/* Contact Button */}
+          <button
+            onClick={() => setContactOpen(true)}
+            className="hidden md:block font-display text-xs tracking-[0.3em] uppercase text-white/60 hover:text-gold transition-colors duration-300"
+          >
+            Contact
+          </button>
+
           {/* Admin Link */}
           <Link href="/admin/login"
             className="hidden md:block font-display text-[9px] tracking-[0.3em] uppercase text-white/15 hover:text-white/40 transition-colors duration-300">
@@ -131,9 +141,18 @@ export default function Header() {
                 </Link>
               );
             })}
+            <button
+              onClick={() => { setMenuOpen(false); setContactOpen(true); }}
+              className="font-display text-sm tracking-[0.3em] uppercase py-2 border-b border-white/5 text-white/60 text-left"
+            >
+              Contact
+            </button>
           </nav>
         </div>
       )}
+
+      {/* Contact Modal */}
+      {contactOpen && <ContactModal onClose={() => setContactOpen(false)} />}
     </header>
   );
 }

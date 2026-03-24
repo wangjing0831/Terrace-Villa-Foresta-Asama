@@ -125,6 +125,21 @@ export async function runMigration(): Promise<void> {
       note_en      TEXT,
       INDEX idx_plan_id (plan_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+    `CREATE TABLE IF NOT EXISTS contact_info (
+      id              INT          PRIMARY KEY DEFAULT 1,
+      phone           VARCHAR(100) DEFAULT '',
+      phone_visible   TINYINT(1)   DEFAULT 1,
+      email           VARCHAR(255) DEFAULT '',
+      email_visible   TINYINT(1)   DEFAULT 1,
+      line_id         VARCHAR(100) DEFAULT '',
+      line_qr_url     VARCHAR(1024) DEFAULT '',
+      line_visible    TINYINT(1)   DEFAULT 1,
+      wechat_id       VARCHAR(100) DEFAULT '',
+      wechat_qr_url   VARCHAR(1024) DEFAULT '',
+      wechat_visible  TINYINT(1)   DEFAULT 1,
+      updated_at      DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ];
 
   for (const sql of tables) {

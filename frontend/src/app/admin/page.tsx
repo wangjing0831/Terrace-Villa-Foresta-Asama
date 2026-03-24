@@ -8,7 +8,7 @@ import { translations } from '@/i18n/translations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'images' | 'videos' | 'plans' | 'layout';
+type Tab = 'images' | 'videos' | 'plans' | 'layout' | 'contact';
 
 interface MediaFile {
   id: string;
@@ -187,6 +187,17 @@ export default function AdminPage() {
   // ── Toast ──
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // ── Contact state ──
+  const [contactForm, setContactForm] = useState({
+    phone: '', phoneVisible: true,
+    email: '', emailVisible: true,
+    lineId: '', lineQrUrl: '', lineVisible: true,
+    wechatId: '', wechatQrUrl: '', wechatVisible: true,
+  });
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactSaving, setContactSaving]   = useState(false);
+  const [contactImagePickerFor, setContactImagePickerFor] = useState<'line' | 'wechat' | null>(null);
+
   // ── Computed ──
   const currentLayout  = draftLayout ?? savedLayout;
   const layoutPlans    = plans;
@@ -244,6 +255,17 @@ export default function AdminPage() {
       } catch { /* use defaults */ }
     })();
   }, []);
+
+  // ── Load contact when tab is activated ──
+  useEffect(() => {
+    if (activeTab !== 'contact') return;
+    setContactLoading(true);
+    fetch('/api/contact')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setContactForm(d); })
+      .catch(() => {})
+      .finally(() => setContactLoading(false));
+  }, [activeTab]);
 
   // ─── Upload ──────────────────────────────────────────────────────────────
 
@@ -752,13 +774,13 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* ── Tabs ── */}
         <div className="flex overflow-x-auto border-b border-white/10 mb-8">
-          {(['images', 'videos', 'plans', 'layout'] as Tab[]).map((tab) => (
+          {(['images', 'videos', 'plans', 'layout', 'contact'] as Tab[]).map((tab) => (
             <button key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 sm:px-6 py-3 flex-shrink-0 font-display text-sm uppercase tracking-widest transition-all duration-300 relative ${
                 activeTab === tab ? 'text-gold border-b-2 border-gold' : 'text-white/30 hover:text-white/60'
               }`}>
-              {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : 'Layout'}
+              {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : tab === 'layout' ? 'Layout' : 'Contact'}
               {tab === 'layout' && hasLayoutChanges && (
                 <span className="ml-2 bg-gold text-black text-[8px] font-display px-1.5 py-0.5 rounded-sm">{changeCount}</span>
               )}
@@ -2133,6 +2155,149 @@ export default function AdminPage() {
           </div>
         );
       })()}
+
+        {/* ══════════════════ CONTACT TAB ══════════════════ */}
+        {activeTab === 'contact' && (() => {
+          const field = (label: string, value: string, onChange: (v: string) => void, placeholder = '') => (
+            <div className="flex flex-col gap-1.5">
+              <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">{label}</label>
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display tracking-wide focus:outline-none focus:border-gold/40 w-full"
+              />
+            </div>
+          );
+
+          const toggle = (label: string, checked: boolean, onChange: (v: boolean) => void) => (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onChange(!checked)}
+                className={`w-10 h-5 rounded-full transition-colors duration-200 relative flex-shrink-0 ${checked ? 'bg-gold' : 'bg-white/10'}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+              <span className="font-display text-[10px] uppercase tracking-widest text-white/40">{label} {checked ? 'Visible' : 'Hidden'}</span>
+            </div>
+          );
+
+          const qrPicker = (ctx: 'line' | 'wechat', currentUrl: string) => (
+            <div className="space-y-2">
+              {currentUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={currentUrl} alt="QR" className="w-24 h-24 object-contain border border-white/10" />
+              )}
+              <button
+                type="button"
+                onClick={() => setContactImagePickerFor(contactImagePickerFor === ctx ? null : ctx)}
+                className="text-[10px] font-display uppercase tracking-widest text-gold/60 hover:text-gold border border-gold/20 hover:border-gold/40 px-3 py-1 transition-colors"
+              >
+                {currentUrl ? 'Change QR Image' : 'Select QR Image'}
+              </button>
+              {contactImagePickerFor === ctx && (
+                <div className="mt-2 grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border border-white/10 p-2 bg-black/40">
+                  {files.filter((f) => f.type === 'image').map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        setContactForm((prev) => ({
+                          ...prev,
+                          [ctx === 'line' ? 'lineQrUrl' : 'wechatQrUrl']: f.url,
+                        }));
+                        setContactImagePickerFor(null);
+                      }}
+                      className={`aspect-square border transition-all ${f.url === currentUrl ? 'border-gold' : 'border-white/10 hover:border-gold/40'}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.url} alt={f.name} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+
+          const handleContactSave = async () => {
+            setContactSaving(true);
+            try {
+              const res = await fetch('/api/contact', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(contactForm),
+              });
+              if (res.ok) {
+                setMessage({ type: 'success', text: 'Contact info saved.' });
+              } else {
+                setMessage({ type: 'error', text: 'Save failed.' });
+              }
+            } catch {
+              setMessage({ type: 'error', text: 'Save failed.' });
+            } finally {
+              setContactSaving(false);
+              setTimeout(() => setMessage(null), 3000);
+            }
+          };
+
+          return (
+            <div className="luxury-card p-6 space-y-8 max-w-lg">
+              <h3 className="font-display text-gold text-xs uppercase tracking-widest">Contact Information</h3>
+
+              {contactLoading ? (
+                <p className="text-white/30 text-xs font-display uppercase tracking-widest">Loading...</p>
+              ) : (
+                <>
+                  {/* Phone */}
+                  <div className="space-y-3 pb-6 border-b border-white/5">
+                    <h4 className="font-display text-[10px] uppercase tracking-widest text-white/40">Phone</h4>
+                    {field('Number', contactForm.phone, (v) => setContactForm((p) => ({ ...p, phone: v })), '+81-XXX-XXXX-XXXX')}
+                    {toggle('Phone', contactForm.phoneVisible, (v) => setContactForm((p) => ({ ...p, phoneVisible: v })))}
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-3 pb-6 border-b border-white/5">
+                    <h4 className="font-display text-[10px] uppercase tracking-widest text-white/40">Email</h4>
+                    {field('Address', contactForm.email, (v) => setContactForm((p) => ({ ...p, email: v })), 'info@example.com')}
+                    {toggle('Email', contactForm.emailVisible, (v) => setContactForm((p) => ({ ...p, emailVisible: v })))}
+                  </div>
+
+                  {/* LINE */}
+                  <div className="space-y-3 pb-6 border-b border-white/5">
+                    <h4 className="font-display text-[10px] uppercase tracking-widest text-white/40">LINE</h4>
+                    {field('LINE ID', contactForm.lineId, (v) => setContactForm((p) => ({ ...p, lineId: v })), '@example')}
+                    <div className="space-y-1.5">
+                      <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">QR Code Image</label>
+                      {qrPicker('line', contactForm.lineQrUrl)}
+                    </div>
+                    {toggle('LINE', contactForm.lineVisible, (v) => setContactForm((p) => ({ ...p, lineVisible: v })))}
+                  </div>
+
+                  {/* WeChat */}
+                  <div className="space-y-3 pb-6 border-b border-white/5">
+                    <h4 className="font-display text-[10px] uppercase tracking-widest text-white/40">WeChat</h4>
+                    {field('WeChat ID', contactForm.wechatId, (v) => setContactForm((p) => ({ ...p, wechatId: v })), 'wechat_id')}
+                    <div className="space-y-1.5">
+                      <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">QR Code Image</label>
+                      {qrPicker('wechat', contactForm.wechatQrUrl)}
+                    </div>
+                    {toggle('WeChat', contactForm.wechatVisible, (v) => setContactForm((p) => ({ ...p, wechatVisible: v })))}
+                  </div>
+
+                  <button
+                    onClick={handleContactSave}
+                    disabled={contactSaving}
+                    className="px-8 py-2.5 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50"
+                  >
+                    {contactSaving ? 'Saving...' : 'Save'}
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })()}
     </div>
   );
 }
