@@ -6,21 +6,22 @@ const NO_CACHE = { 'Cache-Control': 'no-store' };
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const db = getDb();
     if ('visible' in body) {
       await db.query(
         'UPDATE surroundings_spots SET visible=? WHERE id=?',
-        [body.visible ? 1 : 0, params.id],
+        [body.visible ? 1 : 0, id],
       );
     }
     if ('sortOrder' in body) {
       await db.query(
         'UPDATE surroundings_spots SET sort_order=? WHERE id=?',
-        [body.sortOrder, params.id],
+        [body.sortOrder, id],
       );
     }
     return NextResponse.json({ ok: true }, { headers: NO_CACHE });
@@ -32,11 +33,12 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const db = getDb();
-    await db.query('DELETE FROM surroundings_spots WHERE id=?', [params.id]);
+    await db.query('DELETE FROM surroundings_spots WHERE id=?', [id]);
     return NextResponse.json({ ok: true }, { headers: NO_CACHE });
   } catch (err) {
     console.error('[surroundings DELETE]', err);
