@@ -1,0 +1,538 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Foresta Asama Prod - ECS Fargate (Private Subnet) + ALB + S3 (Port 8080) - Case B",
+  "Resources": {
+    "ECSCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": "foresta-asama-cluster"
+      }
+    },
+    "ECSTaskExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "foresta-asama-ecs-task-execution-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "SecretsAndLogs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "AlbSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "foresta-asama-alb-sg",
+        "GroupDescription": "ALB Security Group",
+        "VpcId": {
+          "Fn::ImportValue": "foresta-asama-vpc-id"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "FrontendSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "foresta-asama-frontend-sg",
+        "GroupDescription": "ECS Frontend Security Group",
+        "VpcId": {
+          "Fn::ImportValue": "foresta-asama-vpc-id"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "SourceSecurityGroupId": {
+              "Ref": "AlbSG"
+            }
+          }
+        ]
+      }
+    },
+    "BackendSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "foresta-asama-backend-sg",
+        "GroupDescription": "ECS Backend Security Group",
+        "VpcId": {
+          "Fn::ImportValue": "foresta-asama-vpc-id"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "SourceSecurityGroupId": {
+              "Ref": "AlbSG"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "SourceSecurityGroupId": {
+              "Ref": "FrontendSG"
+            }
+          }
+        ]
+      }
+    },
+    "AppALB": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Name": "foresta-asama-alb",
+        "Scheme": "internet-facing",
+        "Type": "application",
+        "SecurityGroups": [
+          {
+            "Ref": "AlbSG"
+          }
+        ],
+        "Subnets": [
+          {
+            "Fn::ImportValue": "foresta-asama-public-subnet-1a"
+          },
+          {
+            "Fn::ImportValue": "foresta-asama-public-subnet-1c"
+          }
+        ]
+      }
+    },
+    "FrontendTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "foresta-asama-frontend-tg",
+        "Protocol": "HTTP",
+        "Port": 80,
+        "TargetType": "ip",
+        "VpcId": {
+          "Fn::ImportValue": "foresta-asama-vpc-id"
+        },
+        "HealthCheckPath": "/",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": {
+          "HttpCode": "200-499"
+        }
+      }
+    },
+    "BackendTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "foresta-asama-backend-tg",
+        "Protocol": "HTTP",
+        "Port": 8080,
+        "TargetType": "ip",
+        "VpcId": {
+          "Fn::ImportValue": "foresta-asama-vpc-id"
+        },
+        "HealthCheckPath": "/",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": {
+          "HttpCode": "200-499"
+        }
+      }
+    },
+    "ALBListener": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "LoadBalancerArn": {
+          "Ref": "AppALB"
+        },
+        "Protocol": "HTTP",
+        "Port": 80,
+        "DefaultActions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": {
+              "Ref": "FrontendTG"
+            }
+          }
+        ]
+      }
+    },
+    "BackendListenerRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": {
+          "Ref": "ALBListener"
+        },
+        "Priority": 10,
+        "Conditions": [
+          {
+            "Field": "path-pattern",
+            "Values": [
+              "/api/*"
+            ]
+          }
+        ],
+        "Actions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": {
+              "Ref": "BackendTG"
+            }
+          }
+        ]
+      }
+    },
+    "FrontendLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/ecs/foresta-asama-frontend",
+        "RetentionInDays": 30
+      }
+    },
+    "BackendLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/ecs/foresta-asama-backend",
+        "RetentionInDays": 30
+      }
+    },
+    "FrontendTaskDef": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "foresta-asama-frontend",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE"
+        ],
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "ECSTaskExecutionRole",
+            "Arn"
+          ]
+        },
+        "ContainerDefinitions": [
+          {
+            "Name": "frontend",
+            "Image": {
+              "Fn::Sub": "237657481351.dkr.ecr.ap-northeast-1.amazonaws.com/foresta-asama-frontend:latest"
+            },
+            "PortMappings": [
+              {
+                "ContainerPort": 80,
+                "Protocol": "tcp"
+              }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/ecs/foresta-asama-frontend",
+                "awslogs-region": "ap-northeast-1",
+                "awslogs-stream-prefix": "ecs"
+              }
+            },
+            "Environment": [
+              {
+                "Name": "NEXT_PUBLIC_API_URL",
+                "Value": "/api"
+              }
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_HOST",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:host::"
+              },
+              {
+                "Name": "DB_PORT",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:port::"
+              },
+              {
+                "Name": "DB_USER",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:username::"
+              },
+              {
+                "Name": "DB_PASS",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:password::"
+              },
+              {
+                "Name": "DB_NAME",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:dbname::"
+              },
+              {
+                "Name": "S3_BUCKET",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/app-config-uwRz3F:s3_bucket::"
+              },
+              {
+                "Name": "AWS_REGION",
+                "ValueFrom": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/app-config-uwRz3F:aws_region::"
+              }
+            ]
+          }
+        ],
+        "TaskRoleArn": {
+          "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/foresta-asama-ecs-task-role"
+        }
+      }
+    },
+    "BackendTaskDef": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "foresta-asama-backend",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE"
+        ],
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "ECSTaskExecutionRole",
+            "Arn"
+          ]
+        },
+        "ContainerDefinitions": [
+          {
+            "Name": "backend",
+            "Image": {
+              "Fn::Sub": "237657481351.dkr.ecr.ap-northeast-1.amazonaws.com/foresta-asama-backend:latest"
+            },
+            "PortMappings": [
+              {
+                "ContainerPort": 8080,
+                "Protocol": "tcp"
+              }
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_HOST",
+                "ValueFrom": {
+                  "Fn::Sub": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:host::"
+                }
+              },
+              {
+                "Name": "DB_NAME",
+                "ValueFrom": {
+                  "Fn::Sub": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:dbname::"
+                }
+              },
+              {
+                "Name": "DB_USER",
+                "ValueFrom": {
+                  "Fn::Sub": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:username::"
+                }
+              },
+              {
+                "Name": "DB_PASSWORD",
+                "ValueFrom": {
+                  "Fn::Sub": "arn:aws:secretsmanager:ap-northeast-1:237657481351:secret:foresta-asama/db-credentials-0cLBeu:password::"
+                }
+              }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/ecs/foresta-asama-backend",
+                "awslogs-region": "ap-northeast-1",
+                "awslogs-stream-prefix": "ecs"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "FrontendService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": "ALBListener",
+      "Properties": {
+        "ServiceName": "foresta-asama-frontend",
+        "Cluster": {
+          "Ref": "ECSCluster"
+        },
+        "TaskDefinition": {
+          "Ref": "FrontendTaskDef"
+        },
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "DISABLED",
+            "Subnets": [
+              {
+                "Fn::ImportValue": "foresta-asama-private-subnet-1a"
+              }
+            ],
+            "SecurityGroups": [
+              {
+                "Ref": "FrontendSG"
+              }
+            ]
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "frontend",
+            "ContainerPort": 80,
+            "TargetGroupArn": {
+              "Ref": "FrontendTG"
+            }
+          }
+        ]
+      }
+    },
+    "BackendService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": "ALBListener",
+      "Properties": {
+        "ServiceName": "foresta-asama-backend",
+        "Cluster": {
+          "Ref": "ECSCluster"
+        },
+        "TaskDefinition": {
+          "Ref": "BackendTaskDef"
+        },
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "DISABLED",
+            "Subnets": [
+              {
+                "Fn::ImportValue": "foresta-asama-private-subnet-1a"
+              }
+            ],
+            "SecurityGroups": [
+              {
+                "Ref": "BackendSG"
+              }
+            ]
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "backend",
+            "ContainerPort": 8080,
+            "TargetGroupArn": {
+              "Ref": "BackendTG"
+            }
+          }
+        ]
+      }
+    },
+    "AppS3Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "terrace-villa-foresta-asama-prod",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ALBDnsName": {
+      "Value": {
+        "Fn::GetAtt": [
+          "AppALB",
+          "DNSName"
+        ]
+      },
+      "Export": {
+        "Name": "foresta-asama-alb-dns"
+      }
+    },
+    "ECSClusterName": {
+      "Value": {
+        "Ref": "ECSCluster"
+      },
+      "Export": {
+        "Name": "foresta-asama-ecs-cluster"
+      }
+    },
+    "FrontendSGId": {
+      "Value": {
+        "Ref": "FrontendSG"
+      },
+      "Export": {
+        "Name": "foresta-asama-frontend-sg"
+      }
+    },
+    "BackendSGId": {
+      "Value": {
+        "Ref": "BackendSG"
+      },
+      "Export": {
+        "Name": "foresta-asama-backend-sg"
+      }
+    },
+    "AlbSGId": {
+      "Value": {
+        "Ref": "AlbSG"
+      },
+      "Export": {
+        "Name": "foresta-asama-alb-sg"
+      }
+    },
+    "S3BucketName": {
+      "Value": {
+        "Ref": "AppS3Bucket"
+      },
+      "Export": {
+        "Name": "foresta-asama-s3-bucket"
+      }
+    }
+  }
+}
