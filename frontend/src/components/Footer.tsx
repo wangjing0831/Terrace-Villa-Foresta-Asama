@@ -1,11 +1,27 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
+interface ContactInfo {
+  phone: string;        phoneVisible: boolean;
+  email: string;        emailVisible: boolean;
+  lineId: string;       lineVisible: boolean;
+  wechatId: string;     wechatVisible: boolean;
+}
+
 export default function Footer() {
   const { t } = useLanguage();
+  const [contact, setContact] = useState<ContactInfo | null>(null);
+
+  useEffect(() => {
+    fetch('/api/contact')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => setContact(d))
+      .catch(() => {});
+  }, []);
 
   return (
     <footer className="bg-dark-tertiary border-t border-white/5 mt-24">
@@ -53,16 +69,39 @@ export default function Footer() {
           <div>
             <h4 className="font-display text-gold text-xs tracking-[0.4em] uppercase mb-6">Contact</h4>
             <div className="space-y-3 text-sm text-white/40">
-              <div className="flex items-start gap-3">
-                <span className="text-gold mt-0.5">✦</span>
-                <span className="font-kaiti italic">
-                  Karuizawa, Nagano, Japan
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-gold mt-0.5">✦</span>
-                <span>info@foresta-asama.jp</span>
-              </div>
+              {contact ? (
+                <>
+                  {contact.phoneVisible && contact.phone && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-gold mt-0.5">✦</span>
+                      <a href={`tel:${contact.phone}`} className="hover:text-gold transition-colors">{contact.phone}</a>
+                    </div>
+                  )}
+                  {contact.emailVisible && contact.email && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-gold mt-0.5">✦</span>
+                      <a href={`mailto:${contact.email}`} className="hover:text-gold transition-colors break-all">{contact.email}</a>
+                    </div>
+                  )}
+                  {contact.lineVisible && contact.lineId && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-gold mt-0.5">✦</span>
+                      <span>LINE: {contact.lineId}</span>
+                    </div>
+                  )}
+                  {contact.wechatVisible && contact.wechatId && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-gold mt-0.5">✦</span>
+                      <span>WeChat: {contact.wechatId}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <span className="text-gold mt-0.5">✦</span>
+                  <span className="font-kaiti italic">Karuizawa, Nagano, Japan</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
