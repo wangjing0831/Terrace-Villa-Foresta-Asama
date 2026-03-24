@@ -8,7 +8,19 @@ import { translations } from '@/i18n/translations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'images' | 'videos' | 'plans' | 'layout' | 'contact';
+type Tab = 'images' | 'videos' | 'plans' | 'layout' | 'contact' | 'surroundings';
+
+interface SurroundingSpot {
+  id: string;
+  category: string;
+  nameZh: string; nameJa: string; nameEn: string;
+  descriptionZh: string; descriptionJa: string; descriptionEn: string;
+  distance: number;
+  imageUrl: string;
+  tagsZh: string[]; tagsJa: string[]; tagsEn: string[];
+  visible: boolean;
+  sortOrder: number;
+}
 
 interface MediaFile {
   id: string;
@@ -187,6 +199,22 @@ export default function AdminPage() {
   // ── Toast ──
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // ── Surroundings state ──
+  const [surroundingSpots, setSurroundingSpots]   = useState<SurroundingSpot[]>([]);
+  const [surroundingLoading, setSurroundingLoading] = useState(false);
+  const [surroundingEditId, setSurroundingEditId] = useState<string | null>(null); // null=none, 'new'=new
+  const blankSpot = (): SurroundingSpot => ({
+    id: '', category: 'nature',
+    nameZh: '', nameJa: '', nameEn: '',
+    descriptionZh: '', descriptionJa: '', descriptionEn: '',
+    distance: 10, imageUrl: '',
+    tagsZh: [], tagsJa: [], tagsEn: [],
+    visible: true, sortOrder: 0,
+  });
+  const [surroundingForm, setSurroundingForm] = useState<SurroundingSpot>(blankSpot());
+  const [surroundingImagePickerOpen, setSurroundingImagePickerOpen] = useState(false);
+  const [surroundingSaving, setSurroundingSaving] = useState(false);
+
   // ── Contact state ──
   const [contactForm, setContactForm] = useState({
     phone: '', phoneVisible: true,
@@ -255,6 +283,17 @@ export default function AdminPage() {
       } catch { /* use defaults */ }
     })();
   }, []);
+
+  // ── Load surroundings when tab is activated ──
+  useEffect(() => {
+    if (activeTab !== 'surroundings') return;
+    setSurroundingLoading(true);
+    fetch('/api/surroundings?admin=1')
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setSurroundingSpots(d))
+      .catch(() => {})
+      .finally(() => setSurroundingLoading(false));
+  }, [activeTab]);
 
   // ── Load contact when tab is activated ──
   useEffect(() => {
@@ -774,13 +813,13 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* ── Tabs ── */}
         <div className="flex overflow-x-auto border-b border-white/10 mb-8">
-          {(['images', 'videos', 'plans', 'layout', 'contact'] as Tab[]).map((tab) => (
+          {(['images', 'videos', 'plans', 'layout', 'contact', 'surroundings'] as Tab[]).map((tab) => (
             <button key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 sm:px-6 py-3 flex-shrink-0 font-display text-sm uppercase tracking-widest transition-all duration-300 relative ${
                 activeTab === tab ? 'text-gold border-b-2 border-gold' : 'text-white/30 hover:text-white/60'
               }`}>
-              {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : tab === 'layout' ? 'Layout' : 'Contact'}
+              {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : tab === 'layout' ? 'Layout' : tab === 'contact' ? 'Contact' : 'Surroundings'}
               {tab === 'layout' && hasLayoutChanges && (
                 <span className="ml-2 bg-gold text-black text-[8px] font-display px-1.5 py-0.5 rounded-sm">{changeCount}</span>
               )}
@@ -2155,6 +2194,326 @@ export default function AdminPage() {
           </div>
         );
       })()}
+
+        {/* ══════════════════ SURROUNDINGS TAB ══════════════════ */}
+        {activeTab === 'surroundings' && (() => {
+          const CATS = ['nature', 'culture', 'gourmet', 'shopping', 'activity'] as const;
+          const CAT_LABEL: Record<string, string> = {
+            nature: 'Nature', culture: 'Culture', gourmet: 'Gourmet',
+            shopping: 'Shopping', activity: 'Activity',
+          };
+
+          const handleVisibleToggle = async (spot: SurroundingSpot) => {
+            const next = !spot.visible;
+            setSurroundingSpots((prev) => prev.map((s) => s.id === spot.id ? { ...s, visible: next } : s));
+            await fetch(`/api/surroundings/${spot.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ visible: next }),
+            });
+          };
+
+          const handleDelete = async (id: string) => {
+            if (!confirm('このスポットを削除しますか？')) return;
+            await fetch(`/api/surroundings/${id}`, { method: 'DELETE' });
+            setSurroundingSpots((prev) => prev.filter((s) => s.id !== id));
+            if (surroundingEditId === id) setSurroundingEditId(null);
+          };
+
+          const openEdit = (spot: SurroundingSpot) => {
+            setSurroundingForm({ ...spot });
+            setSurroundingEditId(spot.id);
+            setSurroundingImagePickerOpen(false);
+          };
+
+          const openNew = () => {
+            setSurroundingForm({ ...blankSpot(), sortOrder: surroundingSpots.length });
+            setSurroundingEditId('new');
+            setSurroundingImagePickerOpen(false);
+          };
+
+          const handleSave = async () => {
+            if (!surroundingForm.id.trim()) {
+              setMessage({ type: 'error', text: 'ID is required.' });
+              setTimeout(() => setMessage(null), 3000);
+              return;
+            }
+            setSurroundingSaving(true);
+            try {
+              const res = await fetch('/api/surroundings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(surroundingForm),
+              });
+              if (res.ok) {
+                const refreshed = await fetch('/api/surroundings?admin=1').then((r) => r.json());
+                setSurroundingSpots(refreshed);
+                setSurroundingEditId(null);
+                setMessage({ type: 'success', text: 'Saved.' });
+              } else {
+                setMessage({ type: 'error', text: 'Save failed.' });
+              }
+            } catch {
+              setMessage({ type: 'error', text: 'Save failed.' });
+            } finally {
+              setSurroundingSaving(false);
+              setTimeout(() => setMessage(null), 3000);
+            }
+          };
+
+          const sf = surroundingForm;
+          const setSf = (patch: Partial<SurroundingSpot>) => setSurroundingForm((p) => ({ ...p, ...patch }));
+
+          const tagsInput = (lang: 'Zh' | 'Ja' | 'En') => {
+            const key = `tags${lang}` as 'tagsZh' | 'tagsJa' | 'tagsEn';
+            return (
+              <div className="flex flex-col gap-1">
+                <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">
+                  Tags ({lang}) — comma separated
+                </label>
+                <input
+                  type="text"
+                  value={sf[key].join(', ')}
+                  onChange={(e) => setSf({ [key]: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+                  className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40"
+                />
+              </div>
+            );
+          };
+
+          return (
+            <div className="space-y-6">
+              {/* Header row */}
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-gold text-xs uppercase tracking-widest">
+                  Surroundings Spots ({surroundingSpots.length})
+                </h3>
+                <button
+                  onClick={openNew}
+                  className="px-4 py-2 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors"
+                >
+                  + Add Spot
+                </button>
+              </div>
+
+              {surroundingLoading ? (
+                <p className="text-white/30 text-xs font-display uppercase tracking-widest">Loading...</p>
+              ) : (
+                <div className="space-y-3">
+                  {surroundingSpots.map((spot) => (
+                    <div key={spot.id} className="border border-white/10 bg-white/2">
+                      {/* Row */}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        {/* Thumbnail */}
+                        <div className="w-14 h-10 flex-shrink-0 border border-white/10 overflow-hidden bg-white/5">
+                          {spot.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={spot.imageUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-white/10 text-[8px]">no img</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-display text-white/80 text-sm truncate">{spot.nameJa || spot.nameEn}</p>
+                          <p className="font-display text-[10px] text-gold/50 uppercase tracking-widest">
+                            {CAT_LABEL[spot.category]} · {spot.distance}min
+                          </p>
+                        </div>
+
+                        {/* Visibility toggle */}
+                        <button
+                          type="button"
+                          onClick={() => handleVisibleToggle(spot)}
+                          className={`w-10 h-5 rounded-full transition-colors duration-200 relative flex-shrink-0 ${spot.visible ? 'bg-gold' : 'bg-white/10'}`}
+                          title={spot.visible ? 'Visible' : 'Hidden'}
+                        >
+                          <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${spot.visible ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </button>
+
+                        {/* Edit / Delete */}
+                        <button
+                          onClick={() => surroundingEditId === spot.id ? setSurroundingEditId(null) : openEdit(spot)}
+                          className="font-display text-[10px] uppercase tracking-widest text-gold/60 hover:text-gold border border-gold/20 hover:border-gold/40 px-3 py-1 transition-colors"
+                        >
+                          {surroundingEditId === spot.id ? 'Close' : 'Edit'}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(spot.id)}
+                          className="font-display text-[10px] uppercase tracking-widest text-white/20 hover:text-red-400 border border-white/10 hover:border-red-500/30 px-3 py-1 transition-colors"
+                        >
+                          Del
+                        </button>
+                      </div>
+
+                      {/* Edit panel */}
+                      {surroundingEditId === spot.id && (
+                        <div className="border-t border-white/10 px-4 py-5 space-y-4 bg-black/20">
+                          {/* ID (read-only for existing) */}
+                          <div className="flex flex-col gap-1">
+                            <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">ID (read-only)</label>
+                            <input type="text" value={sf.id} readOnly className="bg-white/5 border border-white/5 px-3 py-2 text-sm text-white/30 font-display" />
+                          </div>
+                          {/* Category + Distance */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-1">
+                              <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Category</label>
+                              <select value={sf.category} onChange={(e) => setSf({ category: e.target.value })}
+                                className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40">
+                                {CATS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Distance (min)</label>
+                              <input type="number" value={sf.distance} onChange={(e) => setSf({ distance: Number(e.target.value) })}
+                                className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40" />
+                            </div>
+                          </div>
+                          {/* Names */}
+                          {(['Zh', 'Ja', 'En'] as const).map((l) => (
+                            <div key={l} className="flex flex-col gap-1">
+                              <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Name ({l})</label>
+                              <input type="text" value={sf[`name${l}`]} onChange={(e) => setSf({ [`name${l}`]: e.target.value })}
+                                className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40" />
+                            </div>
+                          ))}
+                          {/* Descriptions */}
+                          {(['Zh', 'Ja', 'En'] as const).map((l) => (
+                            <div key={l} className="flex flex-col gap-1">
+                              <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Description ({l})</label>
+                              <textarea rows={3} value={sf[`description${l}`]} onChange={(e) => setSf({ [`description${l}`]: e.target.value })}
+                                className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40 resize-none w-full" />
+                            </div>
+                          ))}
+                          {/* Tags */}
+                          {tagsInput('Zh')}{tagsInput('Ja')}{tagsInput('En')}
+                          {/* Image */}
+                          <div className="flex flex-col gap-2">
+                            <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Image</label>
+                            {sf.imageUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={sf.imageUrl} alt="" className="w-24 h-16 object-cover border border-white/10" />
+                            )}
+                            <button type="button" onClick={() => setSurroundingImagePickerOpen(!surroundingImagePickerOpen)}
+                              className="text-[10px] font-display uppercase tracking-widest text-gold/60 hover:text-gold border border-gold/20 hover:border-gold/40 px-3 py-1 transition-colors self-start">
+                              {sf.imageUrl ? 'Change Image' : 'Select Image'}
+                            </button>
+                            {surroundingImagePickerOpen && (
+                              <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto border border-white/10 p-2 bg-black/40">
+                                {files.filter((f) => f.type === 'image').map((f) => (
+                                  <button key={f.id} type="button"
+                                    onClick={() => { setSf({ imageUrl: f.url }); setSurroundingImagePickerOpen(false); }}
+                                    className={`aspect-square border transition-all ${f.url === sf.imageUrl ? 'border-gold' : 'border-white/10 hover:border-gold/40'}`}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={f.url} alt={f.name} className="w-full h-full object-cover" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {/* Sort order */}
+                          <div className="flex flex-col gap-1">
+                            <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Sort Order</label>
+                            <input type="number" value={sf.sortOrder} onChange={(e) => setSf({ sortOrder: Number(e.target.value) })}
+                              className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40 w-24" />
+                          </div>
+                          {/* Save */}
+                          <button onClick={handleSave} disabled={surroundingSaving}
+                            className="px-8 py-2.5 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
+                            {surroundingSaving ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* New spot form */}
+              {surroundingEditId === 'new' && (
+                <div className="border border-gold/20 bg-black/20 p-5 space-y-4">
+                  <h4 className="font-display text-gold text-xs uppercase tracking-widest">New Spot</h4>
+                  {/* ID */}
+                  <div className="flex flex-col gap-1">
+                    <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">ID (unique slug)</label>
+                    <input type="text" value={sf.id} onChange={(e) => setSf({ id: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                      placeholder="e.g. new-spot-name"
+                      className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40" />
+                  </div>
+                  {/* Category + Distance */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Category</label>
+                      <select value={sf.category} onChange={(e) => setSf({ category: e.target.value })}
+                        className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40">
+                        {CATS.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Distance (min)</label>
+                      <input type="number" value={sf.distance} onChange={(e) => setSf({ distance: Number(e.target.value) })}
+                        className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40" />
+                    </div>
+                  </div>
+                  {/* Names */}
+                  {(['Zh', 'Ja', 'En'] as const).map((l) => (
+                    <div key={l} className="flex flex-col gap-1">
+                      <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Name ({l})</label>
+                      <input type="text" value={sf[`name${l}`]} onChange={(e) => setSf({ [`name${l}`]: e.target.value })}
+                        className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40" />
+                    </div>
+                  ))}
+                  {/* Descriptions */}
+                  {(['Zh', 'Ja', 'En'] as const).map((l) => (
+                    <div key={l} className="flex flex-col gap-1">
+                      <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Description ({l})</label>
+                      <textarea rows={3} value={sf[`description${l}`]} onChange={(e) => setSf({ [`description${l}`]: e.target.value })}
+                        className="bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40 resize-none w-full" />
+                    </div>
+                  ))}
+                  {tagsInput('Zh')}{tagsInput('Ja')}{tagsInput('En')}
+                  {/* Image */}
+                  <div className="flex flex-col gap-2">
+                    <label className="font-display text-[10px] uppercase tracking-widest text-gold/60">Image</label>
+                    {sf.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={sf.imageUrl} alt="" className="w-24 h-16 object-cover border border-white/10" />
+                    )}
+                    <button type="button" onClick={() => setSurroundingImagePickerOpen(!surroundingImagePickerOpen)}
+                      className="text-[10px] font-display uppercase tracking-widest text-gold/60 hover:text-gold border border-gold/20 hover:border-gold/40 px-3 py-1 transition-colors self-start">
+                      {sf.imageUrl ? 'Change Image' : 'Select Image'}
+                    </button>
+                    {surroundingImagePickerOpen && (
+                      <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto border border-white/10 p-2 bg-black/40">
+                        {files.filter((f) => f.type === 'image').map((f) => (
+                          <button key={f.id} type="button"
+                            onClick={() => { setSf({ imageUrl: f.url }); setSurroundingImagePickerOpen(false); }}
+                            className={`aspect-square border transition-all ${f.url === sf.imageUrl ? 'border-gold' : 'border-white/10 hover:border-gold/40'}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={f.url} alt={f.name} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={handleSave} disabled={surroundingSaving}
+                      className="px-8 py-2.5 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
+                      {surroundingSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={() => setSurroundingEditId(null)}
+                      className="px-5 py-2.5 border border-white/10 text-white/40 hover:text-white font-display text-xs uppercase tracking-widest transition-all">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ══════════════════ CONTACT TAB ══════════════════ */}
         {activeTab === 'contact' && (() => {
