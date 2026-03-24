@@ -4,13 +4,11 @@ import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rewrite root path to /home to bypass the ISR Full Route Cache issue
+  // Debug: add header via next() to verify middleware is running at all
   if (pathname === '/') {
-    const rewriteUrl = new URL('/home', request.url);
-    const response = NextResponse.rewrite(rewriteUrl);
-    response.headers.set('x-middleware-rewrite', 'home');
-    response.headers.set('x-middleware-pathname', pathname);
-    return response;
+    const debugResponse = NextResponse.next();
+    debugResponse.headers.set('x-middleware-ran', 'yes-root');
+    return debugResponse;
   }
 
   // Only protect /admin paths (but not /admin/login itself)
