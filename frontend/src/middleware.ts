@@ -5,10 +5,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rewrite root path to /home to bypass the ISR Full Route Cache issue
-  // where CloudFront requests receive a stale _not-found entry for "/".
-  // Middleware runs before the ISR cache, so this rewrite takes effect first.
   if (pathname === '/') {
-    return NextResponse.rewrite(new URL('/home', request.url));
+    const rewriteUrl = new URL('/home', request.url);
+    const response = NextResponse.rewrite(rewriteUrl);
+    response.headers.set('x-middleware-rewrite', 'home');
+    response.headers.set('x-middleware-pathname', pathname);
+    return response;
   }
 
   // Only protect /admin paths (but not /admin/login itself)
