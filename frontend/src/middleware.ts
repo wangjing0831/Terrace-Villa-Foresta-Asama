@@ -4,6 +4,13 @@ import { verifySessionToken, COOKIE_NAME } from '@/lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Rewrite root path to /home to bypass the ISR Full Route Cache issue
+  // where CloudFront requests receive a stale _not-found entry for "/".
+  // Middleware runs before the ISR cache, so this rewrite takes effect first.
+  if (pathname === '/') {
+    return NextResponse.rewrite(new URL('/home', request.url));
+  }
+
   // Only protect /admin paths (but not /admin/login itself)
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
     const token = request.cookies.get(COOKIE_NAME)?.value;
@@ -22,5 +29,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/', '/admin/:path*'],
 };
