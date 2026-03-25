@@ -154,6 +154,7 @@ export default function AdminPage() {
   const [planEditorId, setPlanEditorId]           = useState('');
   const [planEditorTab, setPlanEditorTab]         = useState<PlanEditorTab>('basic');
   const [planEditorSaving, setPlanEditorSaving]   = useState(false);
+  const [planEditorMsg, setPlanEditorMsg]         = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showNewPlanModal, setShowNewPlanModal]   = useState(false);
   const [newPlanIdInput, setNewPlanIdInput]       = useState('');
   const [newPlanCreating, setNewPlanCreating]     = useState(false);
@@ -518,6 +519,11 @@ export default function AdminPage() {
     setShowPlanEditor(true);
   };
 
+  const showEditorMsg = (type: 'success' | 'error', text: string) => {
+    setPlanEditorMsg({ type, text });
+    setTimeout(() => setPlanEditorMsg(null), 3500);
+  };
+
   const handleSaveAllPlan = async () => {
     setPlanEditorSaving(true);
     try {
@@ -537,7 +543,7 @@ export default function AdminPage() {
           visible: f.visible,
         }),
       });
-      if (!planRes.ok) { showMessage('error', 'プランの保存に失敗しました'); return; }
+      if (!planRes.ok) { showEditorMsg('error', 'プランの保存に失敗しました'); return; }
 
       // 2. PUT highlights
       const highlightsPayload = f.highlights.map((h, i) => ({
@@ -551,7 +557,7 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(highlightsPayload),
       });
-      if (!hlRes.ok) { showMessage('error', 'ハイライトの保存に失敗しました'); return; }
+      if (!hlRes.ok) { showEditorMsg('error', 'ハイライトの保存に失敗しました'); return; }
 
       // 3. PUT days
       const daysPayload = f.days.map((d) => ({
@@ -569,7 +575,7 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(daysPayload),
       });
-      if (!daysRes.ok) { showMessage('error', '日程の保存に失敗しました'); return; }
+      if (!daysRes.ok) { showEditorMsg('error', '日程の保存に失敗しました'); return; }
 
       // 4. PUT budget
       const budgetPayload = f.budgetItems.map((b, i) => ({
@@ -585,7 +591,7 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(budgetPayload),
       });
-      if (!budgetRes.ok) { showMessage('error', '予算の保存に失敗しました'); return; }
+      if (!budgetRes.ok) { showEditorMsg('error', '予算の保存に失敗しました'); return; }
 
       // 5. PUT gallery layout
       const layoutRes2 = await fetch('/api/layouts');
@@ -600,9 +606,9 @@ export default function AdminPage() {
       // Update local plan list
       const updated: PlanEntry = await planRes.json();
       setPlans((prev) => prev.map((p) => p.id === updated.id ? updated : p));
-      showMessage('success', '全ての変更を保存しました');
+      showEditorMsg('success', '全ての変更を保存しました');
     } catch (err) {
-      showMessage('error', String(err));
+      showEditorMsg('error', String(err));
     } finally {
       setPlanEditorSaving(false);
     }
@@ -1931,6 +1937,11 @@ export default function AdminPage() {
                 <span className="text-white/30 font-display text-xs">— {planEditorId}</span>
               </div>
               <div className="flex items-center gap-3">
+                {planEditorMsg && (
+                  <span className={`font-display text-xs tracking-widest ${planEditorMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                    {planEditorMsg.type === 'success' ? '✓ ' : '✗ '}{planEditorMsg.text}
+                  </span>
+                )}
                 <button onClick={handleSaveAllPlan} disabled={planEditorSaving}
                   className="px-6 py-2 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
                   {planEditorSaving ? '保存中...' : 'Save All'}
