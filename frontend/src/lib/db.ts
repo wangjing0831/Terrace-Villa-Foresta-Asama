@@ -165,6 +165,27 @@ export async function runMigration(): Promise<void> {
     await db.query(sql);
   }
 
+  // Extend plan_budget_items with per-language amount/currency columns
+  const budgetCols: [string, string][] = [
+    ['amount_zh',   "VARCHAR(100) DEFAULT ''"],
+    ['currency_zh', "VARCHAR(10)  DEFAULT 'CNY'"],
+    ['amount_ja',   "VARCHAR(100) DEFAULT ''"],
+    ['currency_ja', "VARCHAR(10)  DEFAULT 'JPY'"],
+    ['amount_en',   "VARCHAR(100) DEFAULT ''"],
+    ['currency_en', "VARCHAR(10)  DEFAULT 'USD'"],
+  ];
+  const dbName = process.env.DB_NAME || 'foresta_asama';
+  for (const [col, colType] of budgetCols) {
+    const [rows] = await db.query(
+      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'plan_budget_items' AND COLUMN_NAME = ?`,
+      [dbName, col],
+    ) as any[][];
+    if (rows[0].cnt === 0) {
+      await db.query(`ALTER TABLE plan_budget_items ADD COLUMN ${col} ${colType}`);
+    }
+  }
+
   // Extend plans table with new columns — MySQL 5.7 compatible (no ADD COLUMN IF NOT EXISTS)
   const newColumns: [string, string][] = [
     ['prestige_zh',           'TEXT'],
@@ -176,7 +197,6 @@ export async function runMigration(): Promise<void> {
     ['conclusion_en',         'TEXT'],
   ];
 
-  const dbName = process.env.DB_NAME || 'foresta_asama';
   for (const [col, colType] of newColumns) {
     const [rows] = await db.query(
       `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS

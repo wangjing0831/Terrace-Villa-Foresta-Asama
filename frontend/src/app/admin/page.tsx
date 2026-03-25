@@ -70,7 +70,9 @@ interface EditorBudgetItem {
   _key: string;
   sortOrder: number;
   categoryZh: string; categoryJa: string; categoryEn: string;
-  amount: string;
+  amountZh: string; currencyZh: string;
+  amountJa: string; currencyJa: string;
+  amountEn: string; currencyEn: string;
   noteZh: string; noteJa: string; noteEn: string;
 }
 
@@ -489,13 +491,18 @@ export default function AdminPage() {
           budgetItems:   (full.budgetItems ?? []).map((b: any) => ({
             _key:       makeKey(),
             sortOrder:  b.sortOrder,
-            categoryZh: b.categoryZh ?? '',
-            categoryJa: b.categoryJa ?? '',
-            categoryEn: b.categoryEn ?? '',
-            amount:     b.amount     ?? '',
-            noteZh:     b.noteZh     ?? '',
-            noteJa:     b.noteJa     ?? '',
-            noteEn:     b.noteEn     ?? '',
+            categoryZh: b.categoryZh  ?? '',
+            categoryJa: b.categoryJa  ?? '',
+            categoryEn: b.categoryEn  ?? '',
+            amountZh:   b.amountZh    ?? '',
+            currencyZh: b.currencyZh  ?? 'CNY',
+            amountJa:   b.amountJa    ?? '',
+            currencyJa: b.currencyJa  ?? 'JPY',
+            amountEn:   b.amountEn    ?? '',
+            currencyEn: b.currencyEn  ?? 'USD',
+            noteZh:     b.noteZh      ?? '',
+            noteJa:     b.noteJa      ?? '',
+            noteEn:     b.noteEn      ?? '',
           })),
           visible: full.visible ?? true,
         });
@@ -568,7 +575,9 @@ export default function AdminPage() {
       const budgetPayload = f.budgetItems.map((b, i) => ({
         sortOrder: i,
         categoryZh: b.categoryZh, categoryJa: b.categoryJa, categoryEn: b.categoryEn,
-        amount: b.amount,
+        amountZh: b.amountZh, currencyZh: b.currencyZh,
+        amountJa: b.amountJa, currencyJa: b.currencyJa,
+        amountEn: b.amountEn, currencyEn: b.currencyEn,
         noteZh: b.noteZh, noteJa: b.noteJa, noteEn: b.noteEn,
       }));
       const budgetRes = await fetch(`/api/plans/${planEditorId}/budget`, {
@@ -624,14 +633,14 @@ export default function AdminPage() {
   };
 
   const editorBudgetTotal = (() => {
-    let total = 0; let hasAny = false;
+    const totals: Record<string, number> = {};
     for (const item of editorForm.budgetItems) {
-      if (item.amount.startsWith('¥')) {
-        const num = parseInt(item.amount.replace(/[¥,]/g, ''), 10);
-        if (!isNaN(num)) { total += num; hasAny = true; }
+      for (const [amt, cur] of [[item.amountZh, item.currencyZh], [item.amountJa, item.currencyJa], [item.amountEn, item.currencyEn]] as [string, string][]) {
+        const num = parseFloat((amt ?? '').replace(/[,¥$￥]/g, ''));
+        if (!isNaN(num) && num > 0) totals[cur] = (totals[cur] ?? 0) + num;
       }
     }
-    return hasAny ? `¥${total.toLocaleString()}` : null;
+    return Object.entries(totals).map(([cur, sum]) => `${cur} ${sum.toLocaleString()}`).join(' / ') || null;
   })();
 
   // ─── Bulk delete unused ───────────────────────────────────────────────────
@@ -1730,7 +1739,10 @@ export default function AdminPage() {
                   budgetItems: [...ef.budgetItems, {
                     _key: makeKey(), sortOrder: ef.budgetItems.length,
                     categoryZh: '', categoryJa: '', categoryEn: '',
-                    amount: '', noteZh: '', noteJa: '', noteEn: '',
+                    amountZh: '', currencyZh: 'CNY',
+                    amountJa: '', currencyJa: 'JPY',
+                    amountEn: '', currencyEn: 'USD',
+                    noteZh: '', noteJa: '', noteEn: '',
                   }],
                 }))}
                 className="text-[10px] font-display uppercase tracking-widest px-3 py-1.5 border border-white/20 text-white/50 hover:border-gold/40 hover:text-gold transition-all">
@@ -1761,15 +1773,31 @@ export default function AdminPage() {
                     ))}
                   </div>
                 </div>
-                {/* Amount */}
+                {/* Amount per language */}
                 <div>
-                  <label className="block text-white/30 text-[9px] uppercase tracking-widest font-display mb-1">金額</label>
-                  <input value={item.amount}
-                    onChange={(e) => setEditorForm((ef) => ({
-                      ...ef, budgetItems: ef.budgetItems.map((bi, i) => i === idx ? { ...bi, amount: e.target.value } : bi)
-                    }))}
-                    placeholder="¥25,000"
-                    className="w-48 bg-white/5 border border-white/10 text-white px-3 py-1.5 text-sm focus:border-gold/50 focus:outline-none" />
+                  <label className="block text-white/30 text-[9px] uppercase tracking-widest font-display mb-1">金額 / 通貨</label>
+                  <div className="space-y-1.5">
+                    {([
+                      ['zh', 'amountZh', 'currencyZh', '25000', ['CNY','JPY','USD']],
+                      ['ja', 'amountJa', 'currencyJa', '25000', ['JPY','CNY','USD']],
+                      ['en', 'amountEn', 'currencyEn', '1000',  ['USD','JPY','CNY']],
+                    ] as [string, keyof EditorBudgetItem, keyof EditorBudgetItem, string, string[]][]).map(([lang, amtKey, curKey, ph, opts]) => (
+                      <div key={lang} className="flex gap-2 items-center">
+                        <span className="text-white/20 text-[9px] font-display w-4">{lang}</span>
+                        <select
+                          value={item[curKey] as string}
+                          onChange={(e) => setEditorForm((ef) => ({ ...ef, budgetItems: ef.budgetItems.map((bi, i) => i === idx ? { ...bi, [curKey]: e.target.value } : bi) }))}
+                          className="bg-white/5 border border-white/10 text-gold text-xs px-2 py-1.5 focus:border-gold/50 focus:outline-none">
+                          {opts.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <input
+                          value={item[amtKey] as string}
+                          onChange={(e) => setEditorForm((ef) => ({ ...ef, budgetItems: ef.budgetItems.map((bi, i) => i === idx ? { ...bi, [amtKey]: e.target.value } : bi) }))}
+                          placeholder={ph}
+                          className="w-36 bg-white/5 border border-white/10 text-white px-2 py-1.5 text-sm focus:border-gold/50 focus:outline-none" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 {/* Note */}
                 <div>

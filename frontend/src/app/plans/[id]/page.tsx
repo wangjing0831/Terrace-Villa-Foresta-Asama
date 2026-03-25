@@ -33,7 +33,9 @@ interface PlanBudgetItem {
   id: number;
   sortOrder: number;
   categoryZh: string; categoryJa: string; categoryEn: string;
-  amount: string;
+  amountZh: string; currencyZh: string;
+  amountJa: string; currencyJa: string;
+  amountEn: string; currencyEn: string;
   noteZh: string; noteJa: string; noteEn: string;
 }
 
@@ -76,17 +78,25 @@ const CONCLUSION_TITLE: Record<Lang, string> = {
   en: 'Conclusion',
 };
 
-function calcBudgetTotal(items: PlanBudgetItem[]): string | null {
-  let total = 0;
-  let hasAny = false;
+const CURRENCY_SYMBOL: Record<string, string> = { CNY: '¥', JPY: '¥', USD: '$' };
+
+function getBudgetAmount(item: PlanBudgetItem, lang: Lang): { amount: string; currency: string } {
+  if (lang === 'zh') return { amount: item.amountZh, currency: item.currencyZh || 'CNY' };
+  if (lang === 'ja') return { amount: item.amountJa, currency: item.currencyJa || 'JPY' };
+  return { amount: item.amountEn, currency: item.currencyEn || 'USD' };
+}
+
+
+function calcBudgetTotal(items: PlanBudgetItem[], lang: Lang): string | null {
+  let total = 0; let hasAny = false; let currency = '';
   for (const item of items) {
-    if (item.amount.startsWith('¥')) {
-      const num = parseInt(item.amount.replace(/[¥,]/g, ''), 10);
-      if (!isNaN(num)) { total += num; hasAny = true; }
-    }
+    const { amount, currency: cur } = getBudgetAmount(item, lang);
+    const num = parseFloat((amount ?? '').replace(/[,¥$￥]/g, ''));
+    if (!isNaN(num) && num > 0) { total += num; hasAny = true; currency = cur; }
   }
   if (!hasAny) return null;
-  return `¥${total.toLocaleString()}`;
+  const sym = CURRENCY_SYMBOL[currency] ?? '';
+  return `${currency} ${sym}${total.toLocaleString()}`;
 }
 
 export default function PlanDetailPage() {
@@ -151,7 +161,7 @@ export default function PlanDetailPage() {
   const title     = lang === 'zh' ? plan.titleZh     : lang === 'ja' ? plan.titleJa     : plan.titleEn;
   const prestige  = lang === 'zh' ? plan.prestigeZh  : lang === 'ja' ? plan.prestigeJa  : plan.prestigeEn;
   const conclusion = lang === 'zh' ? plan.conclusionZh : lang === 'ja' ? plan.conclusionJa : plan.conclusionEn;
-  const budgetTotal = calcBudgetTotal(plan.budgetItems);
+  const budgetTotal = calcBudgetTotal(plan.budgetItems, lang);
   const visibleHighlights = plan.highlights.filter((h) =>
     (lang === 'zh' ? h.titleZh : lang === 'ja' ? h.titleJa : h.titleEn).trim() !== ''
   );
@@ -412,10 +422,13 @@ export default function PlanDetailPage() {
                   {plan.budgetItems.map((item) => {
                     const cat  = lang === 'zh' ? item.categoryZh : lang === 'ja' ? item.categoryJa : item.categoryEn;
                     const note = lang === 'zh' ? item.noteZh     : lang === 'ja' ? item.noteJa     : item.noteEn;
+                    const { amount, currency } = getBudgetAmount(item, lang);
                     return (
                       <tr key={item.id} className="border-b border-white/5">
                         <td className="p-3 border border-white/10 font-bold text-white not-italic font-sans">{cat}</td>
-                        <td className="p-3 border border-white/10 text-gold font-display font-bold not-italic">{item.amount}</td>
+                        <td className="p-3 border border-white/10 text-gold font-display font-bold not-italic">
+                          {amount ? `${currency} ${CURRENCY_SYMBOL[currency] ?? ''}${parseFloat(amount.replace(/[,¥$￥]/g,'')).toLocaleString()}` : '—'}
+                        </td>
                         <td className="p-3 border border-white/10">{note}</td>
                       </tr>
                     );

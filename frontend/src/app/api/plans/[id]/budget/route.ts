@@ -7,7 +7,9 @@ interface BudgetInput {
   id?: number;
   sortOrder?: number;
   categoryZh?: string; categoryJa?: string; categoryEn?: string;
-  amount?: string;
+  amountZh?: string; currencyZh?: string;
+  amountJa?: string; currencyJa?: string;
+  amountEn?: string; currencyEn?: string;
   noteZh?: string; noteJa?: string; noteEn?: string;
 }
 
@@ -26,13 +28,18 @@ export async function GET(
     const data = rows.map((r: any) => ({
       id:         r.id,
       sortOrder:  r.sort_order,
-      categoryZh: r.category_zh ?? '',
-      categoryJa: r.category_ja ?? '',
-      categoryEn: r.category_en ?? '',
-      amount:     r.amount      ?? '',
-      noteZh:     r.note_zh     ?? '',
-      noteJa:     r.note_ja     ?? '',
-      noteEn:     r.note_en     ?? '',
+      categoryZh: r.category_zh  ?? '',
+      categoryJa: r.category_ja  ?? '',
+      categoryEn: r.category_en  ?? '',
+      amountZh:   r.amount_zh    ?? '',
+      currencyZh: r.currency_zh  ?? 'CNY',
+      amountJa:   r.amount_ja    ?? '',
+      currencyJa: r.currency_ja  ?? 'JPY',
+      amountEn:   r.amount_en    ?? '',
+      currencyEn: r.currency_en  ?? 'USD',
+      noteZh:     r.note_zh      ?? '',
+      noteJa:     r.note_ja      ?? '',
+      noteEn:     r.note_en      ?? '',
     }));
     return NextResponse.json(data, { headers: NO_STORE });
   } catch (err) {
@@ -56,11 +63,16 @@ export async function PUT(
     if (items.length > 0) {
       const values = items.map((item, idx) => [
         id,
-        item.sortOrder ?? idx,
+        item.sortOrder  ?? idx,
         item.categoryZh ?? '',
         item.categoryJa ?? '',
         item.categoryEn ?? '',
-        item.amount     ?? '',
+        item.amountZh   ?? '',
+        item.currencyZh ?? 'CNY',
+        item.amountJa   ?? '',
+        item.currencyJa ?? 'JPY',
+        item.amountEn   ?? '',
+        item.currencyEn ?? 'USD',
         item.noteZh     ?? '',
         item.noteJa     ?? '',
         item.noteEn     ?? '',
@@ -68,7 +80,8 @@ export async function PUT(
       await db.query(
         `INSERT INTO plan_budget_items
          (plan_id, sort_order, category_zh, category_ja, category_en,
-          amount, note_zh, note_ja, note_en)
+          amount_zh, currency_zh, amount_ja, currency_ja, amount_en, currency_en,
+          note_zh, note_ja, note_en)
          VALUES ?`,
         [values],
       );
