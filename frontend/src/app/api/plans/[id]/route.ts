@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { normalizeUrl } from '@/lib/s3';
 import { rowToPlan, type PlanEntry } from '../route';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -14,7 +15,7 @@ function rowToHighlight(r: any) {
     descriptionZh: r.description_zh ?? '',
     descriptionJa: r.description_ja ?? '',
     descriptionEn: r.description_en ?? '',
-    imageUrl:      r.image_url  ?? '',
+    imageUrl:      normalizeUrl(r.image_url ?? ''),
   };
 }
 
@@ -70,8 +71,8 @@ function rowToFullPlan(plan: any, highlights: any[], days: any[], budget: any[])
     prestigeZh:           plan.prestige_zh    ?? '',
     prestigeJa:           plan.prestige_ja    ?? '',
     prestigeEn:           plan.prestige_en    ?? '',
-    coverImage:           plan.cover_image    ?? '',
-    accommodationImages:  j(plan.accommodation_images),
+    coverImage:           normalizeUrl(plan.cover_image ?? ''),
+    accommodationImages:  j(plan.accommodation_images).map(normalizeUrl),
     conclusionZh:         plan.conclusion_zh  ?? '',
     conclusionJa:         plan.conclusion_ja  ?? '',
     conclusionEn:         plan.conclusion_en  ?? '',
