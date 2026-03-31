@@ -9,7 +9,9 @@ export function getDb(): mysql.Pool {
       port:                 Number(process.env.DB_PORT || 3306),
       user:                 process.env.DB_USER     || 'root',
       password:             process.env.DB_PASS     || '',
-      database:             process.env.DB_NAME     || 'foresta_asama',
+      database:             process.env.TEST_MODE === 'true'
+                              ? 'foresta_asama_test'
+                              : (process.env.DB_NAME || 'foresta_asama'),
       waitForConnections:   true,
       connectionLimit:      5,
       charset:              'utf8mb4',

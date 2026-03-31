@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -135,6 +135,8 @@ const SECTION_MAX: Record<string, number> = {
 export default function AdminPage() {
   const { t } = useLanguage();
   const router = useRouter();
+  const pathname = usePathname();
+  const adminBase = pathname.startsWith('/test') ? '/test/admin' : '/admin';
 
   // ── Media state ──
   const [activeTab, setActiveTab]       = useState<Tab>('images');
@@ -251,7 +253,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/admin/login');
+    router.push(adminBase + '/login');
   };
 
   // ─── Load data ────────────────────────────────────────────────────────────

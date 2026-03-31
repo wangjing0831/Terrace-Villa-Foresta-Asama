@@ -18,6 +18,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# TEST_MODE: injected at build time for test deployments (cicd-test.yml)
+ARG TEST_MODE
+ENV TEST_MODE=$TEST_MODE
+
 # Copy built artifacts
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

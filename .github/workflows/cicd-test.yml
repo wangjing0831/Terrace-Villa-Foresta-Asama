@@ -30,8 +30,8 @@ jobs:
         run: |
           aws ecr get-login-password | docker login --username AWS \
             --password-stdin ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          # NEXT_PUBLIC_TEST_MODE=true をビルド引数として渡す
-          docker build --build-arg NEXT_PUBLIC_TEST_MODE=true \
+          # TEST_MODE=true をビルド引数として渡す（テストDB切り替え用）
+          docker build --build-arg TEST_MODE=true \
             -t ${{ env.ECR_FRONTEND }}:test ./frontend
           docker tag ${{ env.ECR_FRONTEND }}:test \
             ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
