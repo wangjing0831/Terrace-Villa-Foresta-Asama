@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -104,6 +105,8 @@ function PlaceholderCell({ label }: { label: string }) {
 export default function HomePage() {
   const { t, language } = useLanguage();
   const lang = language as 'zh' | 'ja' | 'en';
+  const pathname = usePathname();
+  const base = pathname.startsWith('/test') ? '/test' : '';
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroImages, setHeroImages]     = useState<MediaItem[]>([]);
   const [hotelImages, setHotelImages]   = useState<MediaItem[]>([]);
@@ -226,10 +229,10 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-up delay-500">
-            <Link href="/library" className="luxury-btn">
+            <Link href={base + '/library'} className="luxury-btn">
               Explore the Villa
             </Link>
-            <Link href="/plans" className="luxury-btn-outline">
+            <Link href={base + '/plans'} className="luxury-btn-outline">
               Travel Plans
             </Link>
           </div>
@@ -290,7 +293,7 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <Link href="/library" className="luxury-btn-outline">
+              <Link href={base + '/library'} className="luxury-btn-outline">
                 {t(translations.common.view_all)}
               </Link>
             </div>
@@ -485,7 +488,7 @@ export default function HomePage() {
           </div>
 
           <div className="text-center">
-            <Link href="/plans" className="luxury-btn-outline">
+            <Link href={base + '/plans'} className="luxury-btn-outline">
               {t(translations.common.view_all)}
             </Link>
           </div>
@@ -506,7 +509,7 @@ export default function HomePage() {
               <p className="font-kaiti italic text-white/60 text-lg leading-relaxed mb-8">
                 {t(translations.surroundings.karuizawa_intro)}
               </p>
-              <Link href="/surroundings" className="luxury-btn-outline">
+              <Link href={base + '/surroundings'} className="luxury-btn-outline">
                 {t(translations.common.view_all)}
               </Link>
             </div>

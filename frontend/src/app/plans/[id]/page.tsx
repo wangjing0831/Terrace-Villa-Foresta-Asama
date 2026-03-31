@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -102,6 +102,8 @@ function calcBudgetTotal(items: PlanBudgetItem[], lang: Lang): string | null {
 
 export default function PlanDetailPage() {
   const params = useParams();
+  const pathname = usePathname();
+  const base = pathname.startsWith('/test') ? '/test' : '';
   const { t, language } = useLanguage();
   const lang = language as Lang;
 
@@ -155,7 +157,7 @@ export default function PlanDetailPage() {
         <p className="text-white/40 font-kaiti italic text-center">
           {lang === 'zh' ? '未找到该行程方案' : lang === 'ja' ? 'プランが見つかりません' : 'The requested plan could not be found.'}
         </p>
-        <Link href="/plans" className="luxury-btn-outline">← Back to Plans</Link>
+        <Link href={base + '/plans'} className="luxury-btn-outline">← Back to Plans</Link>
       </div>
     );
   }
@@ -457,7 +459,7 @@ export default function PlanDetailPage() {
 
         {/* Back */}
         <div className="pt-8 border-t border-white/5 flex flex-wrap gap-3 sm:gap-4">
-          <Link href="/plans" className="luxury-btn-outline">
+          <Link href={base + '/plans'} className="luxury-btn-outline">
             ← Back
           </Link>
           <button className="luxury-btn" onClick={() => setContactOpen(true)}>

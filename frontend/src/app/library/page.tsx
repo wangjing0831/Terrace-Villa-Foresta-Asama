@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -24,6 +25,8 @@ type CategoryValue = (typeof CATEGORIES)[number]['value'];
 
 export default function LibraryPage() {
   const { t } = useLanguage();
+  const pathname = usePathname();
+  const base = pathname.startsWith('/test') ? '/test' : '';
   const [activeCategory, setActiveCategory] = useState<CategoryValue>('all');
   const [images, setImages]                 = useState<MediaItem[]>([]);
   const [loading, setLoading]               = useState(true);
@@ -146,7 +149,7 @@ export default function LibraryPage() {
               <p className="font-kaiti italic text-white/20 mb-4">
                 {lang === 'zh' ? '暂无图片' : lang === 'ja' ? '画像がありません' : 'No images yet'}
               </p>
-              <a href="/admin" className="text-gold/40 hover:text-gold text-[10px] font-display uppercase tracking-widest transition-colors duration-300">
+              <a href={base + '/admin'} className="text-gold/40 hover:text-gold text-[10px] font-display uppercase tracking-widest transition-colors duration-300">
                 {lang === 'zh' ? '前往管理画面上传' : lang === 'ja' ? '管理画面でアップロード' : 'Upload via Admin →'}
               </a>
             </div>

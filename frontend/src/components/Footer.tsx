@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -14,6 +15,8 @@ interface ContactInfo {
 
 export default function Footer() {
   const { t } = useLanguage();
+  const pathname = usePathname();
+  const base = pathname.startsWith('/test') ? '/test' : '';
   const [contact, setContact] = useState<ContactInfo | null>(null);
 
   useEffect(() => {
@@ -49,10 +52,10 @@ export default function Footer() {
             <h4 className="font-display text-gold text-xs tracking-[0.4em] uppercase mb-6">Navigation</h4>
             <nav className="flex flex-col gap-3">
               {[
-                { key: 'home', href: '/' },
-                { key: 'library', href: '/library' },
-                { key: 'plans', href: '/plans' },
-                { key: 'surroundings', href: '/surroundings' },
+                { key: 'home', href: base || '/' },
+                { key: 'library', href: base + '/library' },
+                { key: 'plans', href: base + '/plans' },
+                { key: 'surroundings', href: base + '/surroundings' },
               ].map((item) => (
                 <Link
                   key={item.key}
@@ -115,7 +118,7 @@ export default function Footer() {
             © 2025 Terrace Villa Foresta Asama. {t(translations.footer.rights)}.
           </p>
           <Link
-            href="/admin"
+            href={base + '/admin'}
             className="text-white/20 text-[10px] uppercase tracking-widest hover:text-gold/50 transition-colors duration-300"
           >
             {t(translations.nav.admin)}
