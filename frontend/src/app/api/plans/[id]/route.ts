@@ -87,7 +87,7 @@ function rowToFullPlan(plan: any, highlights: any[], days: any[], budget: any[])
 
 // GET /api/plans/[id]
 export async function GET(
-  _req: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -156,7 +156,7 @@ export async function PUT(
 
 // DELETE /api/plans/[id]
 export async function DELETE(
-  _req: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {

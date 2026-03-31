@@ -30,20 +30,8 @@ jobs:
         run: |
           aws ecr get-login-password | docker login --username AWS \
             --password-stdin ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          # TEST_MODE=true をビルド引数として渡す（テストDB切り替え用）
-          # :test タグのみプッシュ。:latest は cicd-prod.yml のみが更新する
-          docker build --build-arg TEST_MODE=true \
-            -t ${{ env.ECR_FRONTEND }}:test ./frontend
+          # develop コードをビルドして :test タグのみプッシュ（:latest は上書きしない）
+          docker build -t ${{ env.ECR_FRONTEND }}:test ./frontend
           docker tag ${{ env.ECR_FRONTEND }}:test \
             ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
           docker push ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
-
-      - name: Deploy ECS Frontend
-        run: |
-          aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} \
-            --service foresta-asama-frontend --force-new-deployment
-
-      - name: CloudFront Invalidation (test path only)
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ env.CF_ID }} --paths "/test/*"

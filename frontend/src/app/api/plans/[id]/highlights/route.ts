@@ -14,7 +14,7 @@ interface HighlightInput {
 
 // GET /api/plans/[id]/highlights
 export async function GET(
-  _req: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;

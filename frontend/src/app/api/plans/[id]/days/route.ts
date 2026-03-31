@@ -14,7 +14,7 @@ interface DayInput {
 
 // GET /api/plans/[id]/days
 export async function GET(
-  _req: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
