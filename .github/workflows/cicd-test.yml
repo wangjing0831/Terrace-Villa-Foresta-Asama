@@ -36,7 +36,9 @@ jobs:
 
       - name: Build & Push Frontend (:test)
         run: |
-          docker build -t ${{ env.ECR_FRONTEND }}:test ./frontend
+          docker build \
+            --build-arg NEXT_PUBLIC_BASE_PATH=/test \
+            -t ${{ env.ECR_FRONTEND }}:test ./frontend
           docker tag ${{ env.ECR_FRONTEND }}:test \
             ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
           docker push ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
