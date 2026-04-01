@@ -1,4 +1,4 @@
-name: Deploy Test (/test)
+name: Deploy Test Environment
 
 on:
   push:
@@ -8,7 +8,10 @@ env:
   AWS_REGION: ap-northeast-1
   AWS_ACCOUNT: 237657481351
   ECR_FRONTEND: foresta-asama-frontend
+  ECR_BACKEND: foresta-asama-backend
   ECS_CLUSTER: foresta-asama-cluster
+  ECS_FRONTEND_SERVICE: foresta-asama-frontend-test
+  ECS_BACKEND_SERVICE: foresta-asama-backend-test
   CF_ID: E1EFTV02COPCRN
 
 jobs:
@@ -26,12 +29,40 @@ jobs:
           role-to-assume: arn:aws:iam::237657481351:role/foresta-asama-github-actions-role
           aws-region: ap-northeast-1
 
-      - name: Build & Push Frontend (test)
+      - name: ECR Login
         run: |
           aws ecr get-login-password | docker login --username AWS \
             --password-stdin ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          # develop コードをビルドして :test タグのみプッシュ（:latest は上書きしない）
+
+      - name: Build & Push Frontend (:test)
+        run: |
           docker build -t ${{ env.ECR_FRONTEND }}:test ./frontend
           docker tag ${{ env.ECR_FRONTEND }}:test \
             ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
           docker push ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND }}:test
+
+      - name: Build & Push Backend (:test)
+        run: |
+          docker build -t ${{ env.ECR_BACKEND }}:test ./backend
+          docker tag ${{ env.ECR_BACKEND }}:test \
+            ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_BACKEND }}:test
+          docker push ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_BACKEND }}:test
+
+      - name: Deploy ECS Frontend (test)
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_FRONTEND_SERVICE }} \
+            --force-new-deployment
+
+      - name: Deploy ECS Backend (test)
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_BACKEND_SERVICE }} \
+            --force-new-deployment
+
+      - name: CloudFront Invalidation (/test/*)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CF_ID }} --paths "/test/*"
