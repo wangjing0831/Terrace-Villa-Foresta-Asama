@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -25,9 +24,8 @@ type CategoryValue = (typeof CATEGORIES)[number]['value'];
 
 export default function LibraryPage() {
   const { t } = useLanguage();
-  const pathname = usePathname();
-  const base = pathname.startsWith('/test') ? '/test' : '';
-  const apiBase = pathname.startsWith('/test') ? '/test/api' : '/api';
+  const base    = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const apiBase = base + '/api';
   const [activeCategory, setActiveCategory] = useState<CategoryValue>('all');
   const [images, setImages]                 = useState<MediaItem[]>([]);
   const [loading, setLoading]               = useState(true);

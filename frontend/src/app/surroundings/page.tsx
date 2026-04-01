@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -24,8 +23,7 @@ const CATEGORIES = ['all', 'nature', 'culture', 'gourmet', 'shopping', 'activity
 export default function SurroundingsPage() {
   const { t, language } = useLanguage();
   const lang = language as Lang;
-  const pathname = usePathname();
-  const apiBase = pathname.startsWith('/test') ? '/test/api' : '/api';
+  const apiBase = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/api';
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [spots, setSpots] = useState<Spot[]>([]);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});

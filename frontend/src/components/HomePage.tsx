@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -105,9 +104,8 @@ function PlaceholderCell({ label }: { label: string }) {
 export default function HomePage() {
   const { t, language } = useLanguage();
   const lang = language as 'zh' | 'ja' | 'en';
-  const pathname = usePathname();
-  const base = pathname.startsWith('/test') ? '/test' : '';
-  const apiBase = pathname.startsWith('/test') ? '/test/api' : '/api';
+  const base    = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const apiBase = base + '/api';
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroImages, setHeroImages]     = useState<MediaItem[]>([]);
   const [hotelImages, setHotelImages]   = useState<MediaItem[]>([]);

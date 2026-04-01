@@ -23,7 +23,7 @@ const languages: { code: Language; label: string }[] = [
 export default function Header() {
   const { language, setLanguage } = useLanguage();
   const pathname = usePathname();
-  const base = pathname.startsWith('/test') ? '/test' : '';
+  const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const navItems = baseNavItems.map((item) => ({
     ...item,
     href: item.href === '/' ? (base || '/') : base + item.href,

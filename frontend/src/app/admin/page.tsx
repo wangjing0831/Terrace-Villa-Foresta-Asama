@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -135,9 +135,9 @@ const SECTION_MAX: Record<string, number> = {
 export default function AdminPage() {
   const { t } = useLanguage();
   const router = useRouter();
-  const pathname = usePathname();
-  const adminBase = pathname.startsWith('/test') ? '/test/admin' : '/admin';
-  const apiBase = pathname.startsWith('/test') ? '/test/api' : '/api';
+  const basePath  = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const adminBase = basePath + '/admin';
+  const apiBase   = basePath + '/api';
 
   // ── Media state ──
   const [activeTab, setActiveTab]       = useState<Tab>('images');

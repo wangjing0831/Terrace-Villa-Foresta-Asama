@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const pathname = usePathname();
-  const adminBase = pathname.startsWith('/test') ? '/test/admin' : '/admin';
-  const apiBase   = pathname.startsWith('/test') ? '/test/api'   : '/api';
+  const basePath  = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const adminBase = basePath + '/admin';
+  const apiBase   = basePath + '/api';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');

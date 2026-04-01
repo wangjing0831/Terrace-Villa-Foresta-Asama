@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { translations } from '@/i18n/translations';
 
@@ -15,9 +14,8 @@ interface ContactInfo {
 
 export default function Footer() {
   const { t } = useLanguage();
-  const pathname = usePathname();
-  const base = pathname.startsWith('/test') ? '/test' : '';
-  const apiBase = pathname.startsWith('/test') ? '/test/api' : '/api';
+  const base    = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const apiBase = base + '/api';
   const [contact, setContact] = useState<ContactInfo | null>(null);
 
   useEffect(() => {

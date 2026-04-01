@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useParams, usePathname } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -102,9 +102,8 @@ function calcBudgetTotal(items: PlanBudgetItem[], lang: Lang): string | null {
 
 export default function PlanDetailPage() {
   const params = useParams();
-  const pathname = usePathname();
-  const base = pathname.startsWith('/test') ? '/test' : '';
-  const apiBase = pathname.startsWith('/test') ? '/test/api' : '/api';
+  const base    = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const apiBase = base + '/api';
   const { t, language } = useLanguage();
   const lang = language as Lang;
 
