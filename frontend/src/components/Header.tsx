@@ -8,10 +8,11 @@ import { Language } from '@/i18n/translations';
 import ContactModal from '@/components/ContactModal';
 
 const baseNavItems = [
-  { key: 'home',         href: '/',             label: 'Home' },
-  { key: 'library',      href: '/library',       label: 'Gallery' },
-  { key: 'plans',        href: '/plans',         label: 'Plans' },
-  { key: 'surroundings', href: '/surroundings',  label: 'Surroundings' },
+  { key: 'home',         href: '/',             labelZh: 'Home',        labelJa: 'Home',  labelEn: 'Home' },
+  { key: 'library',      href: '/library',       labelZh: 'Gallery',     labelJa: 'Gallery', labelEn: 'Gallery' },
+  { key: 'plans',        href: '/plans',         labelZh: 'Plans',       labelJa: 'Plans', labelEn: 'Plans' },
+  { key: 'surroundings', href: '/surroundings',  labelZh: 'Surroundings', labelJa: 'Surroundings', labelEn: 'Surroundings' },
+  { key: 'seasons',      href: '/seasons',       labelZh: '四季',         labelJa: '四季',   labelEn: 'Seasons' },
 ];
 
 const languages: { code: Language; label: string }[] = [
@@ -27,6 +28,7 @@ export default function Header() {
   const navItems = baseNavItems.map((item) => ({
     ...item,
     href: item.href === '/' ? (base || '/') : base + item.href,
+    label: language === 'zh' ? item.labelZh : language === 'ja' ? item.labelJa : item.labelEn,
   }));
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

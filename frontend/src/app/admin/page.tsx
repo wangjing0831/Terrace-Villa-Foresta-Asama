@@ -8,7 +8,21 @@ import { translations } from '@/i18n/translations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'images' | 'videos' | 'plans' | 'layout' | 'contact' | 'surroundings' | 'seasons';
+type Tab = 'images' | 'videos' | 'plans' | 'layout' | 'contact' | 'surroundings' | 'seasons' | 'announcements';
+
+interface AnnouncementItem {
+  id: number;
+  messageCn: string;
+  messageJa: string;
+  messageEn: string;
+  startsAt: string;
+  endsAt: string | null;
+  isActive: boolean;
+  styleVariant: 'default' | 'important';
+  scrollSpeed: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface SurroundingSpot {
   id: string;
@@ -259,6 +273,22 @@ export default function AdminPage() {
   });
   const [seasonForm, setSeasonForm]         = useState<SeasonSpotAdmin>(blankSeason());
 
+  // ── Announcements state ──
+  const blankAnnouncement = (): Omit<AnnouncementItem, 'id' | 'createdAt' | 'updatedAt'> => ({
+    messageCn: '', messageJa: '', messageEn: '',
+    startsAt: new Date().toISOString().slice(0, 16),
+    endsAt: null,
+    isActive: true,
+    styleVariant: 'default',
+    scrollSpeed: 30,
+  });
+  const [announcements, setAnnouncements]       = useState<AnnouncementItem[]>([]);
+  const [announcementLoading, setAnnouncementLoading] = useState(false);
+  const [announcementSaving, setAnnouncementSaving]   = useState(false);
+  const [announcementEditId, setAnnouncementEditId]   = useState<number | 'new' | null>(null);
+  const [announcementForm, setAnnouncementForm]       = useState<Omit<AnnouncementItem, 'id' | 'createdAt' | 'updatedAt'>>(blankAnnouncement());
+  const [announcementPreviewLang, setAnnouncementPreviewLang] = useState<'ja' | 'cn' | 'en'>('ja');
+
   // ── Contact state ──
   const [contactForm, setContactForm] = useState({
     phone: '', phoneVisible: true,
@@ -349,6 +379,17 @@ export default function AdminPage() {
       .catch(() => {})
       .finally(() => setSeasonLoading(false));
   }, [activeTab, seasonTab]);
+
+  // ── Load announcements when tab is activated ──
+  useEffect(() => {
+    if (activeTab !== 'announcements') return;
+    setAnnouncementLoading(true);
+    fetch(apiBase + '/admin/announcements')
+      .then((r) => r.ok ? r.json() : { announcements: [] })
+      .then((d) => setAnnouncements(d.announcements ?? []))
+      .catch(() => {})
+      .finally(() => setAnnouncementLoading(false));
+  }, [activeTab]);
 
   // ── Load contact when tab is activated ──
   useEffect(() => {
@@ -880,13 +921,13 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         {/* ── Tabs ── */}
         <div className="flex overflow-x-auto border-b border-white/10 mb-8">
-          {(['images', 'videos', 'plans', 'layout', 'contact', 'surroundings', 'seasons'] as Tab[]).map((tab) => (
+          {(['images', 'videos', 'plans', 'layout', 'contact', 'surroundings', 'seasons', 'announcements'] as Tab[]).map((tab) => (
             <button key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 sm:px-6 py-3 flex-shrink-0 font-display text-sm uppercase tracking-widest transition-all duration-300 relative ${
                 activeTab === tab ? 'text-gold border-b-2 border-gold' : 'text-white/30 hover:text-white/60'
               }`}>
-              {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : tab === 'layout' ? 'Layout' : tab === 'contact' ? 'Contact' : tab === 'surroundings' ? 'Surroundings' : 'Seasons'}
+              {tab === 'images' ? 'Images' : tab === 'videos' ? 'Videos' : tab === 'plans' ? 'Plans' : tab === 'layout' ? 'Layout' : tab === 'contact' ? 'Contact' : tab === 'surroundings' ? 'Surroundings' : tab === 'seasons' ? 'Seasons' : 'Announcements'}
               {tab === 'layout' && hasLayoutChanges && (
                 <span className="ml-2 bg-gold text-black text-[8px] font-display px-1.5 py-0.5 rounded-sm">{changeCount}</span>
               )}
@@ -3102,6 +3143,243 @@ export default function AdminPage() {
                       {seasonSaving ? 'Saving...' : 'Save'}
                     </button>
                     <button onClick={() => setSeasonEditId(null)}
+                      className="px-4 py-2.5 border border-white/10 font-display text-xs uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ===== ANNOUNCEMENTS TAB ===== */}
+        {activeTab === 'announcements' && (() => {
+          const isNow = (a: AnnouncementItem) => {
+            const now = new Date();
+            return a.isActive && new Date(a.startsAt) <= now && (a.endsAt === null || new Date(a.endsAt) >= now);
+          };
+
+          const handleToggleActive = async (a: AnnouncementItem) => {
+            await fetch(`${apiBase}/admin/announcements/${a.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ isActive: !a.isActive }),
+            });
+            setAnnouncements((prev) => prev.map((x) => x.id === a.id ? { ...x, isActive: !x.isActive } : x));
+          };
+
+          const handleDelete = async (id: number) => {
+            if (!confirm('Delete this announcement?')) return;
+            await fetch(`${apiBase}/admin/announcements/${id}`, { method: 'DELETE' });
+            setAnnouncements((prev) => prev.filter((x) => x.id !== id));
+            if (announcementEditId === id) setAnnouncementEditId(null);
+          };
+
+          const handleSave = async () => {
+            setAnnouncementSaving(true);
+            try {
+              if (announcementEditId === 'new') {
+                const res = await fetch(`${apiBase}/admin/announcements`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(announcementForm),
+                });
+                const created = await res.json();
+                setAnnouncements((prev) => [created, ...prev]);
+              } else if (announcementEditId !== null) {
+                const res = await fetch(`${apiBase}/admin/announcements/${announcementEditId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(announcementForm),
+                });
+                const updated = await res.json();
+                setAnnouncements((prev) => prev.map((x) => x.id === announcementEditId ? updated : x));
+              }
+              setAnnouncementEditId(null);
+            } catch (e) { console.error(e); }
+            setAnnouncementSaving(false);
+          };
+
+          const af = announcementForm;
+          const setAf = (patch: Partial<typeof announcementForm>) =>
+            setAnnouncementForm((p) => ({ ...p, ...patch }));
+
+          const previewMsg = announcementPreviewLang === 'cn' ? af.messageCn
+            : announcementPreviewLang === 'ja' ? af.messageJa
+            : af.messageEn;
+          const previewImportant = af.styleVariant === 'important';
+          const previewBg = previewImportant ? '#3a2a05' : '#161510';
+          const previewClr = previewImportant ? '#faf0d0' : '#faf8f2';
+          const previewDuration = Math.min(40, Math.max(8, (previewMsg || ' ').length / (af.scrollSpeed || 30) * 10));
+
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="font-display text-xl uppercase tracking-widest text-gold">Announcements</h2>
+                <button
+                  onClick={() => { setAnnouncementForm(blankAnnouncement()); setAnnouncementEditId('new'); }}
+                  className="px-6 py-2 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors"
+                >
+                  + New
+                </button>
+              </div>
+
+              {announcementLoading ? (
+                <p className="text-white/30 font-display text-sm">Loading...</p>
+              ) : (
+                <div className="space-y-3 mb-10">
+                  {announcements.length === 0 && (
+                    <p className="text-white/20 font-display text-sm">No announcements yet.</p>
+                  )}
+                  {announcements.map((a) => {
+                    const active = isNow(a);
+                    return (
+                      <div key={a.id}
+                        className="border border-white/10 p-4 flex items-start gap-4"
+                        style={active ? { borderLeftColor: '#c9a96e', borderLeftWidth: 3 } : undefined}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className={`font-display text-[10px] uppercase tracking-widest px-2 py-0.5 ${a.styleVariant === 'important' ? 'bg-amber-700/60 text-amber-200' : 'bg-white/10 text-white/40'}`}>
+                              {a.styleVariant}
+                            </span>
+                            {active && <span className="font-display text-[10px] text-gold uppercase tracking-widest">● Live</span>}
+                            {!a.isActive && <span className="font-display text-[10px] text-white/30 uppercase tracking-widest">Disabled</span>}
+                          </div>
+                          <p className="text-white/70 text-sm truncate">{a.messageJa || a.messageCn || a.messageEn}</p>
+                          <p className="text-white/20 text-[11px] mt-1 font-display">
+                            {a.startsAt?.slice(0, 16)} → {a.endsAt?.slice(0, 16) ?? '∞'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => handleToggleActive(a)}
+                            className="font-display text-[10px] uppercase tracking-widest px-3 py-1 border border-white/10 text-white/40 hover:text-gold transition-colors"
+                          >
+                            {a.isActive ? 'Disable' : 'Enable'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAnnouncementForm({
+                                messageCn: a.messageCn, messageJa: a.messageJa, messageEn: a.messageEn,
+                                startsAt: a.startsAt?.slice(0, 16) ?? '',
+                                endsAt: a.endsAt?.slice(0, 16) ?? null,
+                                isActive: a.isActive, styleVariant: a.styleVariant, scrollSpeed: a.scrollSpeed,
+                              });
+                              setAnnouncementEditId(a.id);
+                            }}
+                            className="font-display text-[10px] uppercase tracking-widest px-3 py-1 border border-white/10 text-white/40 hover:text-gold transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(a.id)}
+                            className="font-display text-[10px] uppercase tracking-widest px-3 py-1 border border-white/10 text-white/40 hover:text-red-400 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Form */}
+              {announcementEditId !== null && (
+                <div className="border border-gold/20 p-6">
+                  <h3 className="font-display text-sm uppercase tracking-widest text-gold mb-6">
+                    {announcementEditId === 'new' ? 'New Announcement' : 'Edit Announcement'}
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 mb-6">
+                    {(['ja', 'cn', 'en'] as const).map((lang) => {
+                      const key = lang === 'ja' ? 'messageJa' : lang === 'cn' ? 'messageCn' : 'messageEn';
+                      const label = lang === 'ja' ? 'Message (Japanese)' : lang === 'cn' ? 'Message (Chinese)' : 'Message (English)';
+                      return (
+                        <div key={lang}>
+                          <label className="font-display text-[10px] uppercase tracking-widest text-gold/60 block mb-1">{label}</label>
+                          <textarea rows={2} value={(af as any)[key]}
+                            onChange={(e) => setAf({ [key]: e.target.value } as any)}
+                            className="w-full bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40 resize-none"
+                          />
+                        </div>
+                      );
+                    })}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="font-display text-[10px] uppercase tracking-widest text-gold/60 block mb-1">Starts At</label>
+                        <input type="datetime-local" value={af.startsAt}
+                          onChange={(e) => setAf({ startsAt: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-display text-[10px] uppercase tracking-widest text-gold/60 block mb-1">Ends At (optional)</label>
+                        <input type="datetime-local" value={af.endsAt ?? ''}
+                          onChange={(e) => setAf({ endsAt: e.target.value || null })}
+                          className="w-full bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="font-display text-[10px] uppercase tracking-widest text-gold/60 block mb-1">Style</label>
+                        <select value={af.styleVariant} onChange={(e) => setAf({ styleVariant: e.target.value as 'default' | 'important' })}
+                          className="w-full bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40">
+                          <option value="default">Default (Gold line)</option>
+                          <option value="important">Important (Amber)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-display text-[10px] uppercase tracking-widest text-gold/60 block mb-1">Scroll Speed (1–100)</label>
+                        <input type="number" min={1} max={100} value={af.scrollSpeed}
+                          onChange={(e) => setAf({ scrollSpeed: Number(e.target.value) })}
+                          className="w-full bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/80 font-display focus:outline-none focus:border-gold/40"
+                        />
+                      </div>
+                      <div className="flex items-end pb-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={af.isActive} onChange={(e) => setAf({ isActive: e.target.checked })}
+                            className="accent-gold" />
+                          <span className="font-display text-[10px] uppercase tracking-widest text-white/60">Active</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Preview */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-display text-[10px] uppercase tracking-widest text-white/30">Preview:</span>
+                      {(['ja', 'cn', 'en'] as const).map((l) => (
+                        <button key={l} onClick={() => setAnnouncementPreviewLang(l)}
+                          className={`font-display text-[10px] uppercase tracking-widest px-2 py-0.5 transition-colors ${announcementPreviewLang === l ? 'text-gold border-b border-gold' : 'text-white/30'}`}>
+                          {l.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ background: previewBg, height: 38, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                      <div style={{ flexShrink: 0, width: previewImportant ? 8 : 3, height: '100%', background: '#c9a96e' }} />
+                      <div style={{ flex: 1, overflow: 'hidden', padding: '0 14px' }}>
+                        <div style={{
+                          display: 'inline-block', whiteSpace: 'nowrap',
+                          animation: `banner-scroll ${previewDuration}s linear infinite`,
+                          paddingLeft: '100%', fontSize: 13, color: previewClr, letterSpacing: '0.04em',
+                        }}>
+                          {previewMsg || '(no message)'}
+                        </div>
+                      </div>
+                      <style>{`@keyframes banner-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }`}</style>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button onClick={handleSave} disabled={announcementSaving}
+                      className="px-8 py-2.5 bg-gold text-black font-display text-xs uppercase tracking-widest hover:bg-gold/80 transition-colors disabled:opacity-50">
+                      {announcementSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={() => setAnnouncementEditId(null)}
                       className="px-4 py-2.5 border border-white/10 font-display text-xs uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors">
                       Cancel
                     </button>

@@ -22,7 +22,7 @@ export const translations = {
       ja: '日本を代表するリゾート地、軽井沢で極上の休暇をお過ごしください。',
       en: 'Begin your journey of ultimate luxury in Karuizawa, Japan\'s most prestigious resort destination.',
     },
-    intro_title: { zh: '关于别墅', ja: 'ヴィラについて', en: 'About the Villa' },
+    intro_title: { zh: 'About the Villa', ja: 'ヴィラについて', en: 'About the Villa' },
     intro_text: {
       zh: '下榻于此，您将体验到绝佳的私密性与尊贵感。这些独立别墅不仅提供了极致宽敞的居住空间，更配备了俯瞰浅间山的私人景观露台。这并非仅仅是一家酒店，更是一处深植于自然中的"归家之所"。',
       ja: 'ここに滞在することで、最高のプライバシーと高貴な体験をお楽しみいただけます。独立したヴィラは極めて広々とした居住空間を提供し、浅間山を一望できるプライベートテラスを備えています。',
@@ -46,7 +46,7 @@ export const translations = {
         desc: { zh: '全程专属私人管家贴心服务', ja: '専属バトラーによる手厚いサービス', en: 'Dedicated personal butler throughout your stay' },
       },
     },
-    video_title: { zh: '别墅视频', ja: 'ヴィラ動画', en: 'Villa Video' },
+    video_title: { zh: 'Villa Video', ja: 'ヴィラ動画', en: 'Villa Video' },
     explore_btn: { zh: '探索别墅', ja: 'ヴィラを探索', en: 'Explore the Villa' },
   },
 

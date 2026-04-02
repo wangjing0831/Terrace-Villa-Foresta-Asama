@@ -469,6 +469,85 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ===== 四季 SEASONS SECTION ===== */}
+      <section className="py-24 px-6 bg-white/2 border-t border-white/5">
+        <div className="max-w-7xl mx-auto">
+          {/* Section header */}
+          <div className="text-center mb-16">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="gold-line" />
+              <span className="text-gold text-[10px] tracking-[0.5em] font-display uppercase">Seasons</span>
+              <div className="gold-line" />
+            </div>
+            <h2 className="section-title mb-4">
+              {lang === 'ja' ? '軽井沢、四季を楽しむ' : 'Karuizawa, Beautiful in Every Season'}
+            </h2>
+            <div className="gold-divider w-48 mx-auto mb-6" />
+            <p className="section-subtitle max-w-2xl mx-auto">
+              {lang === 'zh'
+                ? 'Foresta Asama 是您探索轻井泽四季之美的最佳出发点'
+                : lang === 'ja'
+                ? 'Foresta Asamaは、四季折々の軽井沢を旅する最高の拠点です'
+                : 'Foresta Asama is your perfect base for exploring the seasonal beauty of Karuizawa'}
+            </p>
+          </div>
+
+          {/* 4 Season cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {seasonCards.map((card) => {
+              const label  = lang === 'zh' ? card.labelZh  : lang === 'ja' ? card.labelJa  : card.labelEn;
+              const period = lang === 'zh' ? card.periodZh : lang === 'ja' ? card.periodJa : card.periodEn;
+              const catchCopy = lang === 'zh' ? card.catchZh : lang === 'ja' ? card.catchJa : card.catchEn;
+              return (
+                <Link
+                  key={card.key}
+                  href={`${base}/seasons`}
+                  className="luxury-card overflow-hidden group block"
+                >
+                  {/* Image or gradient */}
+                  <div className="relative aspect-[3/4] overflow-hidden bg-white/5">
+                    {card.mainImage ? (
+                      <Image
+                        src={card.mainImage}
+                        alt={label}
+                        fill unoptimized
+                        className="object-cover transition-transform duration-700 group-hover:scale-105 brightness-50"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-b from-gold/5 to-dark" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-dark/90 via-dark/30 to-transparent" />
+                    {/* Season icon + name overlay */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                      <span className="text-4xl mb-3">{card.icon}</span>
+                      <span className="font-display text-gold text-2xl font-bold tracking-widest uppercase">
+                        {label}
+                      </span>
+                      <span className="font-display text-white/40 text-[10px] tracking-widest mt-1">
+                        {period}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Card footer */}
+                  <div className="p-4 text-center">
+                    <p className="font-kaiti italic text-white/50 text-sm leading-relaxed">
+                      {catchCopy}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* CTA button */}
+          <div className="text-center">
+            <Link href={`${base}/seasons`} className="luxury-btn">
+              {lang === 'zh' ? '探索四季 →' : lang === 'ja' ? '四季を探る →' : 'Explore the Seasons →'}
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ===== PLANS PREVIEW SECTION ===== */}
       <section className="py-24 px-6 bg-white/2 border-t border-white/5">
         <div className="max-w-7xl mx-auto">
@@ -578,87 +657,6 @@ export default function HomePage() {
                 );
               })}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== 四季 SEASONS SECTION ===== */}
-      <section className="py-24 px-6 bg-white/2 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          {/* Section header */}
-          <div className="text-center mb-16">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="gold-line" />
-              <span className="text-gold text-[10px] tracking-[0.5em] font-display uppercase">Seasons</span>
-              <div className="gold-line" />
-            </div>
-            <h2 className="section-title mb-4">
-              {lang === 'zh' ? '轻井泽·四季皆精彩'
-                : lang === 'ja' ? '軽井沢、四季を楽しむ'
-                : 'Karuizawa, Beautiful in Every Season'}
-            </h2>
-            <div className="gold-divider w-48 mx-auto mb-6" />
-            <p className="section-subtitle max-w-2xl mx-auto">
-              {lang === 'zh'
-                ? 'Foresta Asama 是您探索轻井泽四季之美的最佳出发点'
-                : lang === 'ja'
-                ? 'Foresta Asamaは、四季折々の軽井沢を旅する最高の拠点です'
-                : 'Foresta Asama is your perfect base for exploring the seasonal beauty of Karuizawa'}
-            </p>
-          </div>
-
-          {/* 4 Season cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {seasonCards.map((card) => {
-              const label  = lang === 'zh' ? card.labelZh  : lang === 'ja' ? card.labelJa  : card.labelEn;
-              const period = lang === 'zh' ? card.periodZh : lang === 'ja' ? card.periodJa : card.periodEn;
-              const catchCopy = lang === 'zh' ? card.catchZh : lang === 'ja' ? card.catchJa : card.catchEn;
-              return (
-                <Link
-                  key={card.key}
-                  href={`${base}/seasons`}
-                  className="luxury-card overflow-hidden group block"
-                >
-                  {/* Image or gradient */}
-                  <div className="relative aspect-[3/4] overflow-hidden bg-white/5">
-                    {card.mainImage ? (
-                      <Image
-                        src={card.mainImage}
-                        alt={label}
-                        fill unoptimized
-                        className="object-cover transition-transform duration-700 group-hover:scale-105 brightness-50"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-b from-gold/5 to-dark" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-dark/90 via-dark/30 to-transparent" />
-                    {/* Season icon + name overlay */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                      <span className="text-4xl mb-3">{card.icon}</span>
-                      <span className="font-display text-gold text-2xl font-bold tracking-widest uppercase">
-                        {label}
-                      </span>
-                      <span className="font-display text-white/40 text-[10px] tracking-widest mt-1">
-                        {period}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Card footer */}
-                  <div className="p-4 text-center">
-                    <p className="font-kaiti italic text-white/50 text-sm leading-relaxed">
-                      {catchCopy}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* CTA button */}
-          <div className="text-center">
-            <Link href={`${base}/seasons`} className="luxury-btn">
-              {lang === 'zh' ? '探索四季 →' : lang === 'ja' ? '四季を探る →' : 'Explore the Seasons →'}
-            </Link>
           </div>
         </div>
       </section>

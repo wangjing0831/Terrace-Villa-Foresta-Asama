@@ -562,3 +562,24 @@ export async function seedSurroundingsIfEmpty(): Promise<void> {
   }
   console.log('[db] surroundings_spots seeded');
 }
+
+// ─── Announcements ────────────────────────────────────────────────────────────
+
+const ANNOUNCEMENTS_DDL = `CREATE TABLE IF NOT EXISTS announcements (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  message_cn     TEXT NOT NULL,
+  message_ja     TEXT NOT NULL,
+  message_en     TEXT NOT NULL,
+  starts_at      DATETIME NOT NULL,
+  ends_at        DATETIME DEFAULT NULL,
+  is_active      TINYINT(1) DEFAULT 1,
+  style_variant  ENUM('default','important') DEFAULT 'default',
+  scroll_speed   INT DEFAULT 30,
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`;
+
+export async function ensureAnnouncementsTable(isTest = false): Promise<void> {
+  const db = getDb(isTest);
+  await db.query(ANNOUNCEMENTS_DDL);
+}
