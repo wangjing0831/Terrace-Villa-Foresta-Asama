@@ -29,7 +29,7 @@ const EMPTY = {
 
 export async function GET(request: Request) {
   try {
-    await runMigration();
+    await runMigration(isTestReq(request));
     const db = getDb(isTestReq(request));
     const [rows] = await db.query('SELECT * FROM contact_info WHERE id = 1') as any[][];
     return NextResponse.json(rows.length ? rowToContact(rows[0]) : EMPTY, { headers: NO_CACHE });

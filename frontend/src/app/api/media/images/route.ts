@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, isTestReq } from '@/lib/db';
+import { getDb, isTestReq, runMigration } from '@/lib/db';
 import { normalizeUrl } from '@/lib/s3';
 
 export async function GET(request: Request) {
@@ -7,7 +7,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
 
-    const db  = getDb(isTestReq(request));
+    const isTest = isTestReq(request);
+    await runMigration(isTest);
+    const db = getDb(isTest);
     const sql = category
       ? 'SELECT * FROM media WHERE type = ? AND category = ? ORDER BY sort_order ASC, created_at DESC'
       : 'SELECT * FROM media WHERE type = ? ORDER BY sort_order ASC, created_at DESC';

@@ -35,8 +35,8 @@ export function getDb(isTest = false): mysql.Pool {
   return prodPool;
 }
 
-export async function runMigration(): Promise<void> {
-  const db = getDb();
+export async function runMigration(isTest = false): Promise<void> {
+  const db = getDb(isTest);
   const tables = [
     `CREATE TABLE IF NOT EXISTS media (
       id          VARCHAR(36)   PRIMARY KEY,
@@ -187,7 +187,7 @@ export async function runMigration(): Promise<void> {
     ['amount_en',   "VARCHAR(100) DEFAULT ''"],
     ['currency_en', "VARCHAR(10)  DEFAULT 'USD'"],
   ];
-  const dbName = process.env.DB_NAME || 'foresta_asama';
+  const dbName = isTest ? 'foresta_asama_test' : (process.env.DB_NAME || 'foresta_asama');
   for (const [col, colType] of budgetCols) {
     const [rows] = await db.query(
       `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS

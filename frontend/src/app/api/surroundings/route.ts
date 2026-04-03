@@ -27,7 +27,7 @@ function rowToSpot(r: any) {
 
 export async function GET(request: Request) {
   try {
-    await runMigration();
+    await runMigration(isTestReq(request));
     await seedSurroundingsIfEmpty();
     const db = getDb(isTestReq(request));
     const { searchParams } = new URL(request.url);
