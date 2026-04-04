@@ -16,7 +16,13 @@ phases:
   build:
     commands:
       - echo Building Docker image...
-      - docker build -t $ECR_URI:$IMAGE_TAG ./frontend
+      - |
+        if [ "$IMAGE_TAG" = "test" ]; then
+          BUILD_ARGS="--build-arg NEXT_PUBLIC_BASE_PATH=/test"
+        else
+          BUILD_ARGS=""
+        fi
+        docker build $BUILD_ARGS -t $ECR_URI:$IMAGE_TAG ./frontend
       - docker tag $ECR_URI:$IMAGE_TAG $ECR_URI:latest
 
   post_build:
