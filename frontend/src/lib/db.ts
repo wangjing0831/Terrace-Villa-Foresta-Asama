@@ -20,9 +20,9 @@ function createPool(database: string): mysql.Pool {
   });
 }
 
-/** x-test-mode ヘッダーが付いているリクエストかどうか判定 */
+/** テスト環境かどうか判定（TEST_ENV 環境変数 または x-test-mode ヘッダー） */
 export function isTestReq(req: Request): boolean {
-  return req.headers.get('x-test-mode') === 'true';
+  return process.env.TEST_ENV === 'true' || req.headers.get('x-test-mode') === 'true';
 }
 
 /** isTest=true のとき foresta_asama_test スキーマを使用 */
